@@ -372,7 +372,7 @@ void SimState::check_game_over() {
     }
 }
 
-// ===== ga/bot.hpp =====
+// ===== sga/bot.hpp =====
 
 #include <iostream>
 #include <string>
@@ -414,38 +414,36 @@ private:
 
     SimState state_;
 
-    // Best individual from previous turn
+    // Best individual from previous turn (shifted)
     Individual prev_best_;
 
-    // Get initial directions for alive snakes
+    // All-time best individual
+    ScoredIndividual all_time_best_;
+    bool has_all_time_best_ = false;
+
     std::vector<SimDir> get_initial_dirs(const std::vector<int>& alive_ids) const;
 
-    // Generate a random individual respecting no-reverse
     Individual random_individual(int len, int num_snakes,
                                  const std::vector<SimDir>& initial_dirs) const;
 
-    // Repair reverse moves after crossover
     void repair(Individual& ind, const std::vector<SimDir>& initial_dirs) const;
 
-    // Crossover operators
     Individual crossover_time_split(const Individual& a, const Individual& b,
                                      const std::vector<SimDir>& initial_dirs) const;
     Individual crossover_snake_split(const Individual& a, const Individual& b,
                                       int num_snakes,
                                       const std::vector<SimDir>& initial_dirs) const;
 
-    // Mutate an individual in place
     void mutate(Individual& ind, const std::vector<SimDir>& initial_dirs) const;
 
-    // Evaluate an individual
     double evaluate(const SimState& base, const std::vector<int>& alive_ids,
                     const Individual& ind) const;
 
-    // Select a parent via fitness-proportional selection
+    // Tournament selection: pick best of k random candidates
     int select_parent(const std::vector<ScoredIndividual>& pop) const;
 };
 
-// ===== ga/bot.cpp =====
+// ===== sga/bot.cpp =====
 
 static SimDir parse_body_direction(const SimPos& head, const SimPos& neck) {
     int dx = head.x - neck.x;
@@ -569,7 +567,7 @@ void Bot::repair(Individual& ind, const std::vector<SimDir>& initial_dirs) const
     for (auto& step : ind) {
         for (int s = 0; s < num_snakes; s++) {
             if (step[s] == sim_opposite(prev[s])) {
-                step[s] = prev[s];  // keep going same direction rather than reverse
+                step[s] = prev[s];
             }
             prev[s] = step[s];
         }
@@ -579,7 +577,7 @@ void Bot::repair(Individual& ind, const std::vector<SimDir>& initial_dirs) const
 Individual Bot::crossover_time_split(const Individual& a, const Individual& b,
                                       const std::vector<SimDir>& initial_dirs) const {
     int len = (int)a.size();
-    int split = 1 + rand() % (len - 1);  // [1, len-1]
+    int split = 1 + rand() % (len - 1);
     Individual child(len);
     for (int t = 0; t < len; t++) {
         child[t] = (t < split) ? a[t] : b[t];
@@ -591,7 +589,6 @@ Individual Bot::crossover_time_split(const Individual& a, const Individual& b,
 Individual Bot::crossover_snake_split(const Individual& a, const Individual& b,
                                        int num_snakes,
                                        const std::vector<SimDir>& initial_dirs) const {
-    // For each snake, randomly pick which parent to take from
     std::vector<bool> use_a(num_snakes);
     for (int s = 0; s < num_snakes; s++) {
         use_a[s] = rand() % 2;
@@ -616,7 +613,6 @@ void Bot::mutate(Individual& ind, const std::vector<SimDir>& initial_dirs) const
     for (int t = 0; t < (int)ind.size(); t++) {
         for (int s = 0; s < num_snakes; s++) {
             if ((rand() % 1000) < (int)(mutation_rate * 1000)) {
-                // Get the previous direction for this snake
                 SimDir prev = (t > 0) ? ind[t - 1][s] : initial_dirs[s];
                 ind[t][s] = sim_random_dir_no_reverse(prev);
                 mutated = true;
@@ -624,7 +620,6 @@ void Bot::mutate(Individual& ind, const std::vector<SimDir>& initial_dirs) const
         }
     }
 
-    // If we mutated, repair downstream to fix any new reverses
     if (mutated) {
         repair(ind, initial_dirs);
     }
@@ -659,26 +654,14 @@ double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
     return score;
 }
 
+// Tournament selection: pick best of 4 random candidates (strong selective pressure)
 int Bot::select_parent(const std::vector<ScoredIndividual>& pop) const {
-    // Fitness-proportional selection with shifted scores
-    double min_score = pop[0].score;
-    for (auto& p : pop) {
-        if (p.score < min_score) min_score = p.score;
+    int best = rand() % (int)pop.size();
+    for (int i = 1; i < 4; i++) {
+        int c = rand() % (int)pop.size();
+        if (pop[c].score > pop[best].score) best = c;
     }
-
-    // Shift so all scores are >= 1.0
-    double total = 0.0;
-    for (auto& p : pop) {
-        total += (p.score - min_score + 1.0);
-    }
-
-    double r = (double)rand() / RAND_MAX * total;
-    double cumulative = 0.0;
-    for (int i = 0; i < (int)pop.size(); i++) {
-        cumulative += (pop[i].score - min_score + 1.0);
-        if (r <= cumulative) return i;
-    }
-    return (int)pop.size() - 1;
+    return best;
 }
 
 // ===== Main think loop =====
@@ -695,7 +678,7 @@ void Bot::think() {
     auto initial_dirs = get_initial_dirs(alive_ids);
 
     auto start = std::chrono::steady_clock::now();
-    auto deadline = start + std::chrono::milliseconds(40);
+    auto hard_deadline = start + std::chrono::milliseconds(38);
 
     // Initialize population
     std::vector<ScoredIndividual> pop;
@@ -707,7 +690,6 @@ void Bot::think() {
         for (int t = 1; t < (int)prev_best_.size(); t++) {
             shifted.push_back(prev_best_[t]);
         }
-        // Pad to depth
         std::vector<SimDir> pad_dirs(num_snakes);
         for (int s = 0; s < num_snakes; s++) {
             pad_dirs[s] = shifted.empty() ? initial_dirs[s] : shifted.back()[s];
@@ -735,45 +717,50 @@ void Bot::think() {
         pop.push_back({ind, score});
     }
 
-    // Sort by score descending
-    std::sort(pop.begin(), pop.end(),
-              [](const ScoredIndividual& a, const ScoredIndividual& b) {
-                  return a.score > b.score;
-              });
+    // Track all-time best
+    has_all_time_best_ = false;
+    for (auto& p : pop) {
+        if (!has_all_time_best_ || p.score > all_time_best_.score) {
+            all_time_best_ = p;
+            has_all_time_best_ = true;
+        }
+    }
 
-    // Evolve
+    // Generational evolution
     int generations = 0;
-    while (std::chrono::steady_clock::now() < deadline) {
-        // Select two parents
-        int pa = select_parent(pop);
-        int pb = select_parent(pop);
-        while (pb == pa && pop.size() > 1) pb = select_parent(pop);
+    while (std::chrono::steady_clock::now() < hard_deadline) {
+        std::vector<ScoredIndividual> next_pop;
+        next_pop.reserve(pop_size);
 
-        // Crossover
-        Individual child;
-        if (num_snakes > 1 && rand() % 2) {
-            child = crossover_snake_split(pop[pa].seq, pop[pb].seq,
-                                           num_snakes, initial_dirs);
-        } else {
-            child = crossover_time_split(pop[pa].seq, pop[pb].seq, initial_dirs);
+        // Elitism: carry over the all-time best
+        next_pop.push_back(all_time_best_);
+
+        // Fill the rest with children
+        while ((int)next_pop.size() < pop_size) {
+            int pa = select_parent(pop);
+            int pb = select_parent(pop);
+            while (pb == pa && pop.size() > 1) pb = select_parent(pop);
+
+            Individual child;
+            if (num_snakes > 1 && rand() % 2) {
+                child = crossover_snake_split(pop[pa].seq, pop[pb].seq,
+                                               num_snakes, initial_dirs);
+            } else {
+                child = crossover_time_split(pop[pa].seq, pop[pb].seq, initial_dirs);
+            }
+
+            mutate(child, initial_dirs);
+
+            double score = evaluate(state_, alive_ids, child);
+            next_pop.push_back({child, score});
+
+            // Update all-time best
+            if (score > all_time_best_.score) {
+                all_time_best_ = {child, score};
+            }
         }
 
-        // Mutate
-        mutate(child, initial_dirs);
-
-        // Evaluate
-        double score = evaluate(state_, alive_ids, child);
-
-        // Replace worst if child is better
-        if (score > pop.back().score) {
-            pop.back() = {child, score};
-            // Re-sort
-            std::sort(pop.begin(), pop.end(),
-                      [](const ScoredIndividual& a, const ScoredIndividual& b) {
-                          return a.score > b.score;
-                      });
-        }
-
+        pop = std::move(next_pop);
         generations++;
     }
 
@@ -782,28 +769,27 @@ void Bot::think() {
     std::cerr << "t" << turn_ << " d=" << depth
               << " pop=" << pop_size
               << " gens=" << generations
-              << " best=" << pop[0].score
+              << " best=" << all_time_best_.score
               << " " << elapsed << "ms" << std::endl;
 
     // Store best for next turn
-    prev_best_ = pop[0].seq;
+    prev_best_ = all_time_best_.seq;
 
     // Output first move
     const char* dir_names[] = {"UP", "DOWN", "LEFT", "RIGHT"};
     std::string out;
     for (int s = 0; s < num_snakes; s++) {
         if (!out.empty()) out += ";";
-        SimDir d = pop[0].seq[0][s];
+        SimDir d = all_time_best_.seq[0][s];
         out += std::to_string(alive_ids[s]) + " " + dir_names[d]
-             + " ga_d" + std::to_string(depth)
+             + " sga_d" + std::to_string(depth)
              + "_p" + std::to_string(pop_size)
-             + "_g" + std::to_string(generations)
-             + "_e" + std::to_string(pop[0].score);
+             + "_g" + std::to_string(generations);
     }
     std::cout << out << std::endl;
 }
 
-// ===== ga/main.cpp =====
+// ===== sga/main.cpp =====
 #pragma GCC optimize("-O3")
 #pragma GCC optimize("inline")
 #pragma GCC optimize("omit-frame-pointer")

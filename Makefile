@@ -2,7 +2,7 @@ CXX := g++
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra
 PYTHON := python3
 
-.PHONY: bot-mc bot-ga bot-gao bot-dga bot-cga referee merge version run gui league clean
+.PHONY: bot-mc bot-ga bot-gao bot-dga bot-cga bot-sga referee merge version run gui league clean
 
 bot-mc:
 	$(CXX) $(CXXFLAGS) -o bot.out src/mc/main.cpp src/mc/bot.cpp src/sim.cpp
@@ -18,6 +18,9 @@ bot-dga:
 
 bot-cga:
 	$(CXX) $(CXXFLAGS) -o bot.out src/cga/main.cpp src/cga/bot.cpp src/sim.cpp
+
+bot-sga:
+	$(CXX) $(CXXFLAGS) -o bot.out src/sga/main.cpp src/sga/bot.cpp src/sim.cpp
 
 referee:
 	$(CXX) $(CXXFLAGS) -o referee.out referee/main.cpp referee/referee.cpp

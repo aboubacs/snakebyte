@@ -23,32 +23,34 @@
     "ga_d10_p20_e1",
     "ga_d10_p20_e30",
     "iga_d10_p20",
-    "iga_d10_p20_e30"
+    "iga_d10_p20_e30",
+    "sga_d10_p20"
   ],
   "ratings": {
-    "mc_d1": 1270.3,
-    "mc_d5": 1453.4,
-    "mc_d10": 1398.6,
-    "ga_d10_p100": 1634.2,
-    "ga_d10_p20": 1769.0,
-    "ga_d5_p20": 1642.5,
-    "ga_d5_p100": 1569.9,
-    "ga_d20_p20": 1690.3,
-    "ga_d20_p100": 1488.3,
-    "gao_d10_p100_od10_t40": 1612.6,
-    "ga_d10_p20_nocum": 1676.4,
-    "dga_d10_p100": 1425.6,
-    "gao_d20_p20_od3_t10": 1679.5,
-    "ga_d5_p20_nocum": 1629.0,
-    "ga_d20_p20_nocum": 1372.6,
-    "gao_d20_p20_od3_t10_nocum": 1467.3,
-    "cga_d10_p20_k2": 1628.2,
-    "cga_d10_p50_k3": 1439.4,
-    "cga_d20_p20_k2": 1485.9,
-    "ga_d10_p20_e1": 1746.6,
-    "ga_d10_p20_e30": 1733.3,
-    "iga_d10_p20": 1642.8,
-    "iga_d10_p20_e30": 1542.1
+    "mc_d1": 1296.5,
+    "mc_d5": 1436.9,
+    "mc_d10": 1344.1,
+    "ga_d10_p100": 1622.2,
+    "ga_d10_p20": 1763.9,
+    "ga_d5_p20": 1612.9,
+    "ga_d5_p100": 1648.5,
+    "ga_d20_p20": 1666.4,
+    "ga_d20_p100": 1607.1,
+    "gao_d10_p100_od10_t40": 1556.0,
+    "ga_d10_p20_nocum": 1599.1,
+    "dga_d10_p100": 1466.0,
+    "gao_d20_p20_od3_t10": 1633.6,
+    "ga_d5_p20_nocum": 1591.0,
+    "ga_d20_p20_nocum": 1335.3,
+    "gao_d20_p20_od3_t10_nocum": 1519.3,
+    "cga_d10_p20_k2": 1637.3,
+    "cga_d10_p50_k3": 1458.5,
+    "cga_d20_p20_k2": 1555.7,
+    "ga_d10_p20_e1": 1705.8,
+    "ga_d10_p20_e30": 1733.4,
+    "iga_d10_p20": 1632.7,
+    "iga_d10_p20_e30": 1575.6,
+    "sga_d10_p20": 1500
   },
   "rd": {
     "mc_d1": 30.0,
@@ -73,7 +75,8 @@
     "ga_d10_p20_e1": 30.0,
     "ga_d10_p20_e30": 30.0,
     "iga_d10_p20": 30.0,
-    "iga_d10_p20_e30": 30.0
+    "iga_d10_p20_e30": 30.0,
+    "sga_d10_p20": 350.0
   },
   "matches": [
     {
@@ -34767,6 +34770,1494 @@
         38
       ],
       "timestamp": "2026-03-10T14:52:04.825352"
+    },
+    {
+      "players": [
+        "ga_d10_p20_e30",
+        "ga_d10_p20"
+      ],
+      "winner": "ga_d10_p20_e30",
+      "scores": [
+        15,
+        4
+      ],
+      "timestamp": "2026-03-10T14:52:07.238973"
+    },
+    {
+      "players": [
+        "ga_d5_p20_nocum",
+        "ga_d5_p20"
+      ],
+      "winner": "ga_d5_p20",
+      "scores": [
+        0,
+        17
+      ],
+      "timestamp": "2026-03-10T14:52:11.519989"
+    },
+    {
+      "players": [
+        "ga_d10_p20_nocum",
+        "ga_d5_p20_nocum"
+      ],
+      "winner": null,
+      "scores": [
+        0,
+        0
+      ],
+      "timestamp": "2026-03-10T14:52:14.218855"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10",
+        "mc_d10"
+      ],
+      "winner": "gao_d20_p20_od3_t10",
+      "scores": [
+        18,
+        0
+      ],
+      "timestamp": "2026-03-10T14:52:19.798196"
+    },
+    {
+      "players": [
+        "ga_d10_p20",
+        "gao_d20_p20_od3_t10"
+      ],
+      "winner": "ga_d10_p20",
+      "scores": [
+        14,
+        10
+      ],
+      "timestamp": "2026-03-10T14:52:22.948793"
+    },
+    {
+      "players": [
+        "ga_d10_p20_e1",
+        "cga_d10_p50_k3"
+      ],
+      "winner": "cga_d10_p50_k3",
+      "scores": [
+        14,
+        19
+      ],
+      "timestamp": "2026-03-10T14:52:28.519117"
+    },
+    {
+      "players": [
+        "ga_d10_p100",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "ga_d10_p100",
+      "scores": [
+        49,
+        14
+      ],
+      "timestamp": "2026-03-10T14:52:31.678088"
+    },
+    {
+      "players": [
+        "ga_d10_p20_e30",
+        "ga_d5_p20"
+      ],
+      "winner": "ga_d5_p20",
+      "scores": [
+        13,
+        21
+      ],
+      "timestamp": "2026-03-10T14:52:37.254325"
+    },
+    {
+      "players": [
+        "ga_d20_p20",
+        "ga_d5_p20_nocum"
+      ],
+      "winner": "ga_d20_p20",
+      "scores": [
+        39,
+        28
+      ],
+      "timestamp": "2026-03-10T14:52:40.440283"
+    },
+    {
+      "players": [
+        "iga_d10_p20_e30",
+        "ga_d5_p20_nocum"
+      ],
+      "winner": "ga_d5_p20_nocum",
+      "scores": [
+        8,
+        26
+      ],
+      "timestamp": "2026-03-10T14:52:45.982988"
+    },
+    {
+      "players": [
+        "gao_d10_p100_od10_t40",
+        "ga_d10_p100"
+      ],
+      "winner": "ga_d10_p100",
+      "scores": [
+        0,
+        31
+      ],
+      "timestamp": "2026-03-10T14:52:47.040872"
+    },
+    {
+      "players": [
+        "iga_d10_p20_e30",
+        "cga_d20_p20_k2"
+      ],
+      "winner": "iga_d10_p20_e30",
+      "scores": [
+        36,
+        0
+      ],
+      "timestamp": "2026-03-10T14:52:49.092023"
+    },
+    {
+      "players": [
+        "ga_d20_p20",
+        "ga_d10_p20_e30"
+      ],
+      "winner": "ga_d20_p20",
+      "scores": [
+        20,
+        0
+      ],
+      "timestamp": "2026-03-10T14:52:51.290702"
+    },
+    {
+      "players": [
+        "dga_d10_p100",
+        "cga_d20_p20_k2"
+      ],
+      "winner": "cga_d20_p20_k2",
+      "scores": [
+        22,
+        20
+      ],
+      "timestamp": "2026-03-10T14:52:52.377810"
+    },
+    {
+      "players": [
+        "ga_d20_p20",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "ga_d20_p20",
+      "scores": [
+        27,
+        6
+      ],
+      "timestamp": "2026-03-10T14:52:57.803338"
+    },
+    {
+      "players": [
+        "dga_d10_p100",
+        "mc_d10"
+      ],
+      "winner": "dga_d10_p100",
+      "scores": [
+        14,
+        0
+      ],
+      "timestamp": "2026-03-10T14:53:00.941049"
+    },
+    {
+      "players": [
+        "ga_d20_p20_nocum",
+        "mc_d1"
+      ],
+      "winner": "mc_d1",
+      "scores": [
+        4,
+        6
+      ],
+      "timestamp": "2026-03-10T14:53:01.067270"
+    },
+    {
+      "players": [
+        "ga_d5_p20",
+        "cga_d20_p20_k2"
+      ],
+      "winner": "cga_d20_p20_k2",
+      "scores": [
+        0,
+        12
+      ],
+      "timestamp": "2026-03-10T14:53:04.819881"
+    },
+    {
+      "players": [
+        "ga_d20_p100",
+        "ga_d20_p20_nocum"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        37,
+        20
+      ],
+      "timestamp": "2026-03-10T14:53:09.680421"
+    },
+    {
+      "players": [
+        "ga_d20_p20",
+        "ga_d5_p20_nocum"
+      ],
+      "winner": "ga_d5_p20_nocum",
+      "scores": [
+        14,
+        25
+      ],
+      "timestamp": "2026-03-10T14:53:13.559315"
+    },
+    {
+      "players": [
+        "mc_d1",
+        "ga_d10_p20_nocum"
+      ],
+      "winner": "ga_d10_p20_nocum",
+      "scores": [
+        0,
+        43
+      ],
+      "timestamp": "2026-03-10T14:53:16.534670"
+    },
+    {
+      "players": [
+        "ga_d10_p100",
+        "ga_d5_p100"
+      ],
+      "winner": "ga_d5_p100",
+      "scores": [
+        23,
+        37
+      ],
+      "timestamp": "2026-03-10T14:53:22.309315"
+    },
+    {
+      "players": [
+        "ga_d20_p20_nocum",
+        "iga_d10_p20"
+      ],
+      "winner": "iga_d10_p20",
+      "scores": [
+        29,
+        44
+      ],
+      "timestamp": "2026-03-10T14:53:25.277057"
+    },
+    {
+      "players": [
+        "dga_d10_p100",
+        "ga_d20_p20"
+      ],
+      "winner": "dga_d10_p100",
+      "scores": [
+        54,
+        0
+      ],
+      "timestamp": "2026-03-10T14:53:27.107440"
+    },
+    {
+      "players": [
+        "cga_d20_p20_k2",
+        "iga_d10_p20_e30"
+      ],
+      "winner": "cga_d20_p20_k2",
+      "scores": [
+        37,
+        24
+      ],
+      "timestamp": "2026-03-10T14:53:33.993070"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10_nocum",
+        "gao_d20_p20_od3_t10"
+      ],
+      "winner": "gao_d20_p20_od3_t10",
+      "scores": [
+        24,
+        59
+      ],
+      "timestamp": "2026-03-10T14:53:35.847193"
+    },
+    {
+      "players": [
+        "ga_d10_p20_e30",
+        "iga_d10_p20_e30"
+      ],
+      "winner": "ga_d10_p20_e30",
+      "scores": [
+        23,
+        22
+      ],
+      "timestamp": "2026-03-10T14:53:42.726117"
+    },
+    {
+      "players": [
+        "gao_d10_p100_od10_t40",
+        "cga_d10_p20_k2"
+      ],
+      "winner": "cga_d10_p20_k2",
+      "scores": [
+        19,
+        26
+      ],
+      "timestamp": "2026-03-10T14:53:44.579761"
+    },
+    {
+      "players": [
+        "ga_d20_p100",
+        "cga_d10_p20_k2"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        13,
+        0
+      ],
+      "timestamp": "2026-03-10T14:53:50.272635"
+    },
+    {
+      "players": [
+        "ga_d20_p100",
+        "gao_d20_p20_od3_t10"
+      ],
+      "winner": "gao_d20_p20_od3_t10",
+      "scores": [
+        0,
+        29
+      ],
+      "timestamp": "2026-03-10T14:53:52.990251"
+    },
+    {
+      "players": [
+        "ga_d5_p20_nocum",
+        "ga_d10_p100"
+      ],
+      "winner": "ga_d10_p100",
+      "scores": [
+        2,
+        4
+      ],
+      "timestamp": "2026-03-10T14:53:53.290307"
+    },
+    {
+      "players": [
+        "cga_d10_p50_k3",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "cga_d10_p50_k3",
+      "scores": [
+        38,
+        17
+      ],
+      "timestamp": "2026-03-10T14:54:01.688297"
+    },
+    {
+      "players": [
+        "ga_d20_p20",
+        "ga_d5_p20"
+      ],
+      "winner": "ga_d20_p20",
+      "scores": [
+        14,
+        8
+      ],
+      "timestamp": "2026-03-10T14:54:02.022947"
+    },
+    {
+      "players": [
+        "cga_d10_p50_k3",
+        "iga_d10_p20_e30"
+      ],
+      "winner": "iga_d10_p20_e30",
+      "scores": [
+        0,
+        36
+      ],
+      "timestamp": "2026-03-10T14:54:04.423764"
+    },
+    {
+      "players": [
+        "cga_d10_p20_k2",
+        "ga_d10_p20_e1"
+      ],
+      "winner": "cga_d10_p20_k2",
+      "scores": [
+        11,
+        9
+      ],
+      "timestamp": "2026-03-10T14:54:10.716920"
+    },
+    {
+      "players": [
+        "cga_d20_p20_k2",
+        "ga_d10_p100"
+      ],
+      "winner": "cga_d20_p20_k2",
+      "scores": [
+        34,
+        33
+      ],
+      "timestamp": "2026-03-10T14:54:13.131996"
+    },
+    {
+      "players": [
+        "ga_d10_p100",
+        "iga_d10_p20_e30"
+      ],
+      "winner": "ga_d10_p100",
+      "scores": [
+        14,
+        0
+      ],
+      "timestamp": "2026-03-10T14:54:16.817735"
+    },
+    {
+      "players": [
+        "ga_d20_p100",
+        "mc_d10"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        14,
+        13
+      ],
+      "timestamp": "2026-03-10T14:54:21.866777"
+    },
+    {
+      "players": [
+        "iga_d10_p20_e30",
+        "mc_d5"
+      ],
+      "winner": "iga_d10_p20_e30",
+      "scores": [
+        49,
+        23
+      ],
+      "timestamp": "2026-03-10T14:54:25.551587"
+    },
+    {
+      "players": [
+        "mc_d5",
+        "gao_d10_p100_od10_t40"
+      ],
+      "winner": "mc_d5",
+      "scores": [
+        41,
+        25
+      ],
+      "timestamp": "2026-03-10T14:54:30.599585"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10_nocum",
+        "ga_d5_p100"
+      ],
+      "winner": "gao_d20_p20_od3_t10_nocum",
+      "scores": [
+        12,
+        0
+      ],
+      "timestamp": "2026-03-10T14:54:30.788341"
+    },
+    {
+      "players": [
+        "ga_d10_p100",
+        "cga_d20_p20_k2"
+      ],
+      "winner": "ga_d10_p100",
+      "scores": [
+        15,
+        0
+      ],
+      "timestamp": "2026-03-10T14:54:35.586307"
+    },
+    {
+      "players": [
+        "ga_d20_p100",
+        "ga_d10_p20_e1"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        19,
+        0
+      ],
+      "timestamp": "2026-03-10T14:54:38.036037"
+    },
+    {
+      "players": [
+        "cga_d10_p50_k3",
+        "ga_d20_p100"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        26,
+        27
+      ],
+      "timestamp": "2026-03-10T14:54:39.293645"
+    },
+    {
+      "players": [
+        "mc_d10",
+        "ga_d20_p20_nocum"
+      ],
+      "winner": "ga_d20_p20_nocum",
+      "scores": [
+        0,
+        22
+      ],
+      "timestamp": "2026-03-10T14:54:43.571417"
+    },
+    {
+      "players": [
+        "cga_d10_p50_k3",
+        "mc_d1"
+      ],
+      "winner": "cga_d10_p50_k3",
+      "scores": [
+        22,
+        0
+      ],
+      "timestamp": "2026-03-10T14:54:43.808625"
+    },
+    {
+      "players": [
+        "ga_d10_p20_e1",
+        "mc_d10"
+      ],
+      "winner": "ga_d10_p20_e1",
+      "scores": [
+        29,
+        0
+      ],
+      "timestamp": "2026-03-10T14:54:45.863907"
+    },
+    {
+      "players": [
+        "dga_d10_p100",
+        "gao_d10_p100_od10_t40"
+      ],
+      "winner": "dga_d10_p100",
+      "scores": [
+        29,
+        0
+      ],
+      "timestamp": "2026-03-10T14:54:48.836401"
+    },
+    {
+      "players": [
+        "ga_d10_p20",
+        "gao_d20_p20_od3_t10"
+      ],
+      "winner": "ga_d10_p20",
+      "scores": [
+        42,
+        0
+      ],
+      "timestamp": "2026-03-10T14:54:49.587708"
+    },
+    {
+      "players": [
+        "ga_d5_p20_nocum",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "gao_d20_p20_od3_t10_nocum",
+      "scores": [
+        4,
+        32
+      ],
+      "timestamp": "2026-03-10T14:54:57.528097"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10",
+        "ga_d10_p100"
+      ],
+      "winner": "gao_d20_p20_od3_t10",
+      "scores": [
+        28,
+        25
+      ],
+      "timestamp": "2026-03-10T14:54:58.313383"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10",
+        "ga_d10_p20"
+      ],
+      "winner": "ga_d10_p20",
+      "scores": [
+        0,
+        30
+      ],
+      "timestamp": "2026-03-10T14:55:03.386266"
+    },
+    {
+      "players": [
+        "ga_d20_p100",
+        "gao_d20_p20_od3_t10"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        33,
+        25
+      ],
+      "timestamp": "2026-03-10T14:55:07.049670"
+    },
+    {
+      "players": [
+        "ga_d10_p20_e30",
+        "gao_d10_p100_od10_t40"
+      ],
+      "winner": "ga_d10_p20_e30",
+      "scores": [
+        19,
+        0
+      ],
+      "timestamp": "2026-03-10T14:55:11.378444"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10_nocum",
+        "ga_d5_p20"
+      ],
+      "winner": "ga_d5_p20",
+      "scores": [
+        4,
+        16
+      ],
+      "timestamp": "2026-03-10T14:55:12.106451"
+    },
+    {
+      "players": [
+        "ga_d10_p100",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "gao_d20_p20_od3_t10_nocum",
+      "scores": [
+        0,
+        27
+      ],
+      "timestamp": "2026-03-10T14:55:18.435641"
+    },
+    {
+      "players": [
+        "cga_d10_p20_k2",
+        "ga_d20_p100"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        24,
+        27
+      ],
+      "timestamp": "2026-03-10T14:55:20.086797"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10",
+        "iga_d10_p20_e30"
+      ],
+      "winner": "iga_d10_p20_e30",
+      "scores": [
+        0,
+        20
+      ],
+      "timestamp": "2026-03-10T14:55:24.546530"
+    },
+    {
+      "players": [
+        "ga_d5_p100",
+        "mc_d10"
+      ],
+      "winner": "ga_d5_p100",
+      "scores": [
+        33,
+        0
+      ],
+      "timestamp": "2026-03-10T14:55:26.180010"
+    },
+    {
+      "players": [
+        "ga_d20_p100",
+        "mc_d5"
+      ],
+      "winner": "mc_d5",
+      "scores": [
+        0,
+        38
+      ],
+      "timestamp": "2026-03-10T14:55:28.591910"
+    },
+    {
+      "players": [
+        "mc_d5",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "gao_d20_p20_od3_t10_nocum",
+      "scores": [
+        0,
+        19
+      ],
+      "timestamp": "2026-03-10T14:55:32.738581"
+    },
+    {
+      "players": [
+        "ga_d20_p100",
+        "ga_d10_p20_e1"
+      ],
+      "winner": "ga_d10_p20_e1",
+      "scores": [
+        0,
+        35
+      ],
+      "timestamp": "2026-03-10T14:55:37.337926"
+    },
+    {
+      "players": [
+        "gao_d10_p100_od10_t40",
+        "mc_d10"
+      ],
+      "winner": "gao_d10_p100_od10_t40",
+      "scores": [
+        27,
+        0
+      ],
+      "timestamp": "2026-03-10T14:55:39.171619"
+    },
+    {
+      "players": [
+        "ga_d20_p20_nocum",
+        "ga_d20_p20"
+      ],
+      "winner": "ga_d20_p20_nocum",
+      "scores": [
+        20,
+        0
+      ],
+      "timestamp": "2026-03-10T14:55:41.339661"
+    },
+    {
+      "players": [
+        "ga_d10_p20",
+        "ga_d20_p20_nocum"
+      ],
+      "winner": "ga_d10_p20",
+      "scores": [
+        35,
+        30
+      ],
+      "timestamp": "2026-03-10T14:55:46.059537"
+    },
+    {
+      "players": [
+        "cga_d20_p20_k2",
+        "ga_d10_p20_nocum"
+      ],
+      "winner": "cga_d20_p20_k2",
+      "scores": [
+        19,
+        6
+      ],
+      "timestamp": "2026-03-10T14:55:50.029265"
+    },
+    {
+      "players": [
+        "ga_d10_p20_e1",
+        "mc_d1"
+      ],
+      "winner": "ga_d10_p20_e1",
+      "scores": [
+        34,
+        0
+      ],
+      "timestamp": "2026-03-10T14:55:54.702896"
+    },
+    {
+      "players": [
+        "ga_d5_p20",
+        "ga_d20_p20_nocum"
+      ],
+      "winner": "ga_d5_p20",
+      "scores": [
+        33,
+        10
+      ],
+      "timestamp": "2026-03-10T14:55:54.771258"
+    },
+    {
+      "players": [
+        "ga_d5_p20_nocum",
+        "iga_d10_p20"
+      ],
+      "winner": "ga_d5_p20_nocum",
+      "scores": [
+        10,
+        0
+      ],
+      "timestamp": "2026-03-10T14:56:02.935329"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10_nocum",
+        "ga_d10_p20_e30"
+      ],
+      "winner": "ga_d10_p20_e30",
+      "scores": [
+        4,
+        49
+      ],
+      "timestamp": "2026-03-10T14:56:03.487656"
+    },
+    {
+      "players": [
+        "cga_d10_p20_k2",
+        "iga_d10_p20"
+      ],
+      "winner": "iga_d10_p20",
+      "scores": [
+        0,
+        22
+      ],
+      "timestamp": "2026-03-10T14:56:07.601445"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10",
+        "dga_d10_p100"
+      ],
+      "winner": "gao_d20_p20_od3_t10",
+      "scores": [
+        25,
+        0
+      ],
+      "timestamp": "2026-03-10T14:56:08.012475"
+    },
+    {
+      "players": [
+        "ga_d20_p20",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "ga_d20_p20",
+      "scores": [
+        41,
+        27
+      ],
+      "timestamp": "2026-03-10T14:56:16.331968"
+    },
+    {
+      "players": [
+        "cga_d10_p50_k3",
+        "mc_d5"
+      ],
+      "winner": "mc_d5",
+      "scores": [
+        17,
+        19
+      ],
+      "timestamp": "2026-03-10T14:56:16.695233"
+    },
+    {
+      "players": [
+        "dga_d10_p100",
+        "ga_d20_p20"
+      ],
+      "winner": "ga_d20_p20",
+      "scores": [
+        36,
+        31
+      ],
+      "timestamp": "2026-03-10T14:56:21.697290"
+    },
+    {
+      "players": [
+        "gao_d10_p100_od10_t40",
+        "ga_d20_p100"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        0,
+        11
+      ],
+      "timestamp": "2026-03-10T14:56:22.836666"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10_nocum",
+        "ga_d10_p20_e1"
+      ],
+      "winner": "ga_d10_p20_e1",
+      "scores": [
+        9,
+        27
+      ],
+      "timestamp": "2026-03-10T14:56:30.407949"
+    },
+    {
+      "players": [
+        "ga_d5_p20_nocum",
+        "mc_d5"
+      ],
+      "winner": "ga_d5_p20_nocum",
+      "scores": [
+        14,
+        8
+      ],
+      "timestamp": "2026-03-10T14:56:31.543783"
+    },
+    {
+      "players": [
+        "ga_d5_p100",
+        "ga_d20_p20"
+      ],
+      "winner": "ga_d5_p100",
+      "scores": [
+        22,
+        18
+      ],
+      "timestamp": "2026-03-10T14:56:39.139170"
+    },
+    {
+      "players": [
+        "gao_d10_p100_od10_t40",
+        "ga_d5_p20_nocum"
+      ],
+      "winner": "gao_d10_p100_od10_t40",
+      "scores": [
+        30,
+        23
+      ],
+      "timestamp": "2026-03-10T14:56:40.287365"
+    },
+    {
+      "players": [
+        "ga_d10_p20",
+        "dga_d10_p100"
+      ],
+      "winner": "dga_d10_p100",
+      "scores": [
+        0,
+        14
+      ],
+      "timestamp": "2026-03-10T14:56:42.984557"
+    },
+    {
+      "players": [
+        "cga_d10_p50_k3",
+        "ga_d10_p20_nocum"
+      ],
+      "winner": "cga_d10_p50_k3",
+      "scores": [
+        12,
+        0
+      ],
+      "timestamp": "2026-03-10T14:56:46.371651"
+    },
+    {
+      "players": [
+        "cga_d20_p20_k2",
+        "cga_d10_p50_k3"
+      ],
+      "winner": "cga_d20_p20_k2",
+      "scores": [
+        44,
+        35
+      ],
+      "timestamp": "2026-03-10T14:56:51.323466"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10",
+        "ga_d10_p100"
+      ],
+      "winner": null,
+      "scores": [
+        15,
+        15
+      ],
+      "timestamp": "2026-03-10T14:56:55.103777"
+    },
+    {
+      "players": [
+        "ga_d5_p20",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "gao_d20_p20_od3_t10_nocum",
+      "scores": [
+        0,
+        6
+      ],
+      "timestamp": "2026-03-10T14:56:58.531236"
+    },
+    {
+      "players": [
+        "cga_d10_p20_k2",
+        "cga_d20_p20_k2"
+      ],
+      "winner": "cga_d10_p20_k2",
+      "scores": [
+        25,
+        0
+      ],
+      "timestamp": "2026-03-10T14:56:59.129591"
+    },
+    {
+      "players": [
+        "ga_d10_p100",
+        "ga_d5_p20_nocum"
+      ],
+      "winner": "ga_d5_p20_nocum",
+      "scores": [
+        0,
+        31
+      ],
+      "timestamp": "2026-03-10T14:57:06.572899"
+    },
+    {
+      "players": [
+        "ga_d10_p20_e1",
+        "gao_d10_p100_od10_t40"
+      ],
+      "winner": "ga_d10_p20_e1",
+      "scores": [
+        26,
+        24
+      ],
+      "timestamp": "2026-03-10T14:57:07.250175"
+    },
+    {
+      "players": [
+        "ga_d10_p20_nocum",
+        "ga_d20_p20"
+      ],
+      "winner": "ga_d20_p20",
+      "scores": [
+        23,
+        26
+      ],
+      "timestamp": "2026-03-10T14:57:15.307800"
+    },
+    {
+      "players": [
+        "ga_d20_p20_nocum",
+        "ga_d10_p20_e30"
+      ],
+      "winner": "ga_d10_p20_e30",
+      "scores": [
+        9,
+        44
+      ],
+      "timestamp": "2026-03-10T14:57:15.991701"
+    },
+    {
+      "players": [
+        "ga_d5_p20_nocum",
+        "ga_d20_p100"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        18,
+        21
+      ],
+      "timestamp": "2026-03-10T14:57:24.038078"
+    },
+    {
+      "players": [
+        "iga_d10_p20",
+        "ga_d10_p20_e30"
+      ],
+      "winner": "iga_d10_p20",
+      "scores": [
+        20,
+        16
+      ],
+      "timestamp": "2026-03-10T14:57:24.721329"
+    },
+    {
+      "players": [
+        "gao_d10_p100_od10_t40",
+        "ga_d5_p100"
+      ],
+      "winner": "ga_d5_p100",
+      "scores": [
+        0,
+        34
+      ],
+      "timestamp": "2026-03-10T14:57:28.235027"
+    },
+    {
+      "players": [
+        "ga_d10_p20_nocum",
+        "ga_d20_p100"
+      ],
+      "winner": "ga_d10_p20_nocum",
+      "scores": [
+        24,
+        23
+      ],
+      "timestamp": "2026-03-10T14:57:33.469609"
+    },
+    {
+      "players": [
+        "mc_d10",
+        "ga_d20_p20_nocum"
+      ],
+      "winner": "mc_d10",
+      "scores": [
+        28,
+        20
+      ],
+      "timestamp": "2026-03-10T14:57:36.948963"
+    },
+    {
+      "players": [
+        "iga_d10_p20",
+        "ga_d10_p20_e30"
+      ],
+      "winner": "ga_d10_p20_e30",
+      "scores": [
+        23,
+        25
+      ],
+      "timestamp": "2026-03-10T14:57:42.195734"
+    },
+    {
+      "players": [
+        "ga_d10_p20_e1",
+        "ga_d10_p100"
+      ],
+      "winner": null,
+      "scores": [
+        0,
+        0
+      ],
+      "timestamp": "2026-03-10T14:57:44.583429"
+    },
+    {
+      "players": [
+        "gao_d10_p100_od10_t40",
+        "ga_d10_p100"
+      ],
+      "winner": "gao_d10_p100_od10_t40",
+      "scores": [
+        24,
+        0
+      ],
+      "timestamp": "2026-03-10T14:57:45.063199"
+    },
+    {
+      "players": [
+        "mc_d5",
+        "cga_d20_p20_k2"
+      ],
+      "winner": "cga_d20_p20_k2",
+      "scores": [
+        0,
+        28
+      ],
+      "timestamp": "2026-03-10T14:57:53.129951"
+    },
+    {
+      "players": [
+        "ga_d5_p100",
+        "ga_d20_p20_nocum"
+      ],
+      "winner": "ga_d5_p100",
+      "scores": [
+        32,
+        6
+      ],
+      "timestamp": "2026-03-10T14:57:53.295701"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10",
+        "mc_d10"
+      ],
+      "winner": "gao_d20_p20_od3_t10",
+      "scores": [
+        32,
+        0
+      ],
+      "timestamp": "2026-03-10T14:57:55.420531"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10_nocum",
+        "ga_d5_p20_nocum"
+      ],
+      "winner": "gao_d20_p20_od3_t10_nocum",
+      "scores": [
+        6,
+        0
+      ],
+      "timestamp": "2026-03-10T14:57:58.997415"
+    },
+    {
+      "players": [
+        "mc_d10",
+        "ga_d5_p20_nocum"
+      ],
+      "winner": "ga_d5_p20_nocum",
+      "scores": [
+        0,
+        20
+      ],
+      "timestamp": "2026-03-10T14:58:01.486546"
+    },
+    {
+      "players": [
+        "ga_d5_p20",
+        "cga_d10_p50_k3"
+      ],
+      "winner": "cga_d10_p50_k3",
+      "scores": [
+        0,
+        22
+      ],
+      "timestamp": "2026-03-10T14:58:03.194416"
+    },
+    {
+      "players": [
+        "ga_d20_p100",
+        "iga_d10_p20"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        25,
+        0
+      ],
+      "timestamp": "2026-03-10T14:58:09.908813"
+    },
+    {
+      "players": [
+        "ga_d5_p20",
+        "ga_d20_p20_nocum"
+      ],
+      "winner": "ga_d5_p20",
+      "scores": [
+        17,
+        0
+      ],
+      "timestamp": "2026-03-10T14:58:10.822726"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10",
+        "mc_d1"
+      ],
+      "winner": "mc_d1",
+      "scores": [
+        0,
+        26
+      ],
+      "timestamp": "2026-03-10T14:58:16.091465"
+    },
+    {
+      "players": [
+        "cga_d10_p20_k2",
+        "ga_d10_p20_nocum"
+      ],
+      "winner": "cga_d10_p20_k2",
+      "scores": [
+        25,
+        5
+      ],
+      "timestamp": "2026-03-10T14:58:18.597381"
+    },
+    {
+      "players": [
+        "mc_d5",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "gao_d20_p20_od3_t10_nocum",
+      "scores": [
+        0,
+        21
+      ],
+      "timestamp": "2026-03-10T14:58:19.857881"
+    },
+    {
+      "players": [
+        "ga_d10_p100",
+        "mc_d5"
+      ],
+      "winner": "ga_d10_p100",
+      "scores": [
+        24,
+        20
+      ],
+      "timestamp": "2026-03-10T14:58:27.333107"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10_nocum",
+        "ga_d20_p20"
+      ],
+      "winner": "ga_d20_p20",
+      "scores": [
+        28,
+        39
+      ],
+      "timestamp": "2026-03-10T14:58:28.622460"
+    },
+    {
+      "players": [
+        "ga_d5_p100",
+        "ga_d20_p20"
+      ],
+      "winner": "ga_d5_p100",
+      "scores": [
+        32,
+        16
+      ],
+      "timestamp": "2026-03-10T14:58:36.076513"
+    },
+    {
+      "players": [
+        "dga_d10_p100",
+        "mc_d1"
+      ],
+      "winner": "dga_d10_p100",
+      "scores": [
+        41,
+        0
+      ],
+      "timestamp": "2026-03-10T14:58:36.667345"
+    },
+    {
+      "players": [
+        "ga_d10_p100",
+        "gao_d20_p20_od3_t10_nocum"
+      ],
+      "winner": "ga_d10_p100",
+      "scores": [
+        35,
+        16
+      ],
+      "timestamp": "2026-03-10T14:58:44.808248"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10_nocum",
+        "dga_d10_p100"
+      ],
+      "winner": "gao_d20_p20_od3_t10_nocum",
+      "scores": [
+        6,
+        4
+      ],
+      "timestamp": "2026-03-10T14:58:45.361393"
+    },
+    {
+      "players": [
+        "gao_d20_p20_od3_t10_nocum",
+        "ga_d10_p100"
+      ],
+      "winner": "ga_d10_p100",
+      "scores": [
+        7,
+        18
+      ],
+      "timestamp": "2026-03-10T14:58:53.529086"
+    },
+    {
+      "players": [
+        "ga_d20_p20_nocum",
+        "ga_d20_p100"
+      ],
+      "winner": "ga_d20_p100",
+      "scores": [
+        31,
+        42
+      ],
+      "timestamp": "2026-03-10T14:58:54.104784"
+    },
+    {
+      "players": [
+        "mc_d5",
+        "iga_d10_p20_e30"
+      ],
+      "winner": "iga_d10_p20_e30",
+      "scores": [
+        0,
+        28
+      ],
+      "timestamp": "2026-03-10T14:58:58.347866"
+    },
+    {
+      "players": [
+        "dga_d10_p100",
+        "gao_d10_p100_od10_t40"
+      ],
+      "winner": "gao_d10_p100_od10_t40",
+      "scores": [
+        0,
+        10
+      ],
+      "timestamp": "2026-03-10T14:59:00.070627"
+    },
+    {
+      "players": [
+        "iga_d10_p20_e30",
+        "mc_d5"
+      ],
+      "winner": "iga_d10_p20_e30",
+      "scores": [
+        24,
+        20
+      ],
+      "timestamp": "2026-03-10T14:59:02.259954"
+    },
+    {
+      "players": [
+        "ga_d10_p20_nocum",
+        "ga_d5_p100"
+      ],
+      "winner": "ga_d5_p100",
+      "scores": [
+        6,
+        23
+      ],
+      "timestamp": "2026-03-10T14:59:08.793202"
+    },
+    {
+      "players": [
+        "mc_d10",
+        "cga_d10_p50_k3"
+      ],
+      "winner": null,
+      "scores": [
+        16,
+        16
+      ],
+      "timestamp": "2026-03-10T14:59:10.990897"
+    },
+    {
+      "players": [
+        "mc_d5",
+        "cga_d10_p50_k3"
+      ],
+      "winner": "mc_d5",
+      "scores": [
+        24,
+        0
+      ],
+      "timestamp": "2026-03-10T14:59:13.890259"
+    },
+    {
+      "players": [
+        "cga_d20_p20_k2",
+        "gao_d20_p20_od3_t10"
+      ],
+      "winner": "gao_d20_p20_od3_t10",
+      "scores": [
+        9,
+        17
+      ],
+      "timestamp": "2026-03-10T14:59:17.488361"
     }
   ],
   "config": {
