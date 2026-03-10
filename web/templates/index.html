@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>snakebite</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>snakebite</h1>
+    </header>
+
+    <div class="container">
+        <!-- Left: Versions + Match launcher -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Builds</h2>
+            </div>
+            <div class="panel-body" id="version-list"></div>
+
+            <div class="section">
+                <div class="section-label">Run match</div>
+                <div class="field">
+                    <label>Player 1</label>
+                    <select id="player1"></select>
+                </div>
+                <div class="field">
+                    <label>Player 2</label>
+                    <select id="player2"></select>
+                </div>
+                <button class="btn-primary btn-full" id="btn-run-match" style="margin-top:4px">Run</button>
+                <div id="match-status"></div>
+            </div>
+        </div>
+
+        <!-- Center: Viewer -->
+        <div class="panel" id="viewer">
+            <div class="panel-header">
+                <h2>Viewer</h2>
+                <span class="frame-info" id="frame-info">-</span>
+            </div>
+            <div class="panel-body">
+                <canvas id="viewer-canvas"></canvas>
+            </div>
+            <div class="viewer-controls">
+                <button class="btn-icon" id="btn-prev">&#9664;</button>
+                <button class="btn-icon" id="btn-play">&#9654;</button>
+                <button class="btn-icon" id="btn-next">&#9654;</button>
+                <input type="range" id="frame-slider" min="0" max="0" value="0">
+            </div>
+        </div>
+
+        <!-- Right: League -->
+        <div class="panel" id="league-panel">
+            <div class="panel-header">
+                <h2>League</h2>
+                <button class="btn-ghost" id="btn-new-pool">+ New pool</button>
+            </div>
+
+            <div class="pool-bar">
+                <select id="pool-select"><option value="">Select pool</option></select>
+                <button class="btn-icon" id="btn-toggle-active" title="Toggle active/paused" style="display:none">&#9654;</button>
+                <button class="btn-icon" id="btn-refresh-pool" title="Refresh">&#8635;</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" data-tab="rankings">Rankings</div>
+                <div class="tab" data-tab="history">History</div>
+            </div>
+
+            <!-- Rankings -->
+            <div class="tab-content active" id="tab-rankings">
+                <div style="flex:1;overflow-y:auto">
+                    <table class="rankings-table" id="rankings-table">
+                        <thead><tr><th>#</th><th>Version</th><th>Games</th><th>ELO</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="league-actions" id="league-actions">
+                    <select id="add-version-select" style="flex:1"></select>
+                    <button class="btn-secondary" id="btn-add-version">Add</button>
+                    <button class="btn-primary" id="btn-run-league">Run 10</button>
+                </div>
+                <div id="league-status" style="padding:0 12px"></div>
+            </div>
+
+            <!-- History -->
+            <div class="tab-content" id="tab-history">
+                <div id="match-history" style="flex:1;overflow-y:auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create pool dialog (hidden) -->
+    <div class="dialog-overlay" id="create-pool-dialog" style="display:none">
+        <div class="dialog">
+            <h3>Create pool</h3>
+            <p>A pool groups bot versions and tracks ELO ratings across matches.</p>
+            <div class="field">
+                <label>Name</label>
+                <input id="new-pool-name" placeholder="e.g. main, experimental">
+            </div>
+            <div class="dialog-actions">
+                <button class="btn-secondary" id="btn-cancel-pool">Cancel</button>
+                <button class="btn-primary" id="btn-confirm-pool">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

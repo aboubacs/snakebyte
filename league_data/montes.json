@@ -1,0 +1,273 @@
+{
+  "name": "montes",
+  "versions": [
+    "dummy_RANDOM",
+    "mc_d1",
+    "mc_d2",
+    "mc_d5",
+    "mc_d3",
+    "mc_d6",
+    "mc_d8",
+    "mc_d10",
+    "mc_d15",
+    "mc_d20"
+  ],
+  "ratings": {
+    "dummy_RANDOM": 1551.0,
+    "mc_d1": 1511.9,
+    "mc_d2": 1515.3,
+    "mc_d5": 1530.7,
+    "mc_d3": 1466.7,
+    "mc_d6": 1500.2,
+    "mc_d8": 1482.7,
+    "mc_d10": 1487.0,
+    "mc_d15": 1484.1,
+    "mc_d20": 1470.4
+  },
+  "rd": {
+    "dummy_RANDOM": 30.0,
+    "mc_d1": 30.0,
+    "mc_d2": 30.0,
+    "mc_d5": 30.0,
+    "mc_d3": 30.0,
+    "mc_d6": 30.0,
+    "mc_d8": 30.0,
+    "mc_d10": 30.0,
+    "mc_d15": 30.0,
+    "mc_d20": 30.0
+  },
+  "matches": [
+    {
+      "players": [
+        "dummy_RANDOM",
+        "mc_d1"
+      ],
+      "winner": "mc_d1",
+      "scores": [
+        0,
+        5
+      ],
+      "timestamp": "2026-03-10T10:58:39.592873"
+    },
+    {
+      "players": [
+        "dummy_RANDOM",
+        "mc_d2"
+      ],
+      "winner": "mc_d2",
+      "scores": [
+        0,
+        7
+      ],
+      "timestamp": "2026-03-10T10:58:40.368129"
+    },
+    {
+      "players": [
+        "mc_d2",
+        "mc_d1"
+      ],
+      "winner": null,
+      "scores": [
+        2,
+        2
+      ],
+      "timestamp": "2026-03-10T10:59:24.352619"
+    },
+    {
+      "players": [
+        "dummy_RANDOM",
+        "mc_d5"
+      ],
+      "winner": "mc_d5",
+      "scores": [
+        0,
+        5
+      ],
+      "timestamp": "2026-03-10T11:00:42.158354"
+    },
+    {
+      "players": [
+        "mc_d5",
+        "mc_d1"
+      ],
+      "winner": "mc_d5",
+      "scores": [
+        6,
+        4
+      ],
+      "timestamp": "2026-03-10T11:01:04.944607"
+    },
+    {
+      "players": [
+        "mc_d3",
+        "mc_d6"
+      ],
+      "winner": null,
+      "scores": [
+        5,
+        5
+      ],
+      "timestamp": "2026-03-10T11:03:26.110191"
+    },
+    {
+      "players": [
+        "mc_d8",
+        "mc_d10"
+      ],
+      "winner": "mc_d8",
+      "scores": [
+        6,
+        4
+      ],
+      "timestamp": "2026-03-10T11:03:45.973313"
+    },
+    {
+      "players": [
+        "mc_d20",
+        "mc_d15"
+      ],
+      "winner": "mc_d15",
+      "scores": [
+        5,
+        5
+      ],
+      "timestamp": "2026-03-10T11:05:29.372997"
+    },
+    {
+      "players": [
+        "mc_d3",
+        "dummy_RANDOM"
+      ],
+      "winner": "dummy_RANDOM",
+      "scores": [
+        3,
+        3
+      ],
+      "timestamp": "2026-03-10T11:05:30.059743"
+    },
+    {
+      "players": [
+        "dummy_RANDOM",
+        "mc_d6"
+      ],
+      "winner": "dummy_RANDOM",
+      "scores": [
+        5,
+        7
+      ],
+      "timestamp": "2026-03-10T11:05:30.745024"
+    },
+    {
+      "players": [
+        "mc_d8",
+        "dummy_RANDOM"
+      ],
+      "winner": "dummy_RANDOM",
+      "scores": [
+        6,
+        6
+      ],
+      "timestamp": "2026-03-10T11:05:31.430028"
+    },
+    {
+      "players": [
+        "dummy_RANDOM",
+        "mc_d10"
+      ],
+      "winner": "dummy_RANDOM",
+      "scores": [
+        3,
+        3
+      ],
+      "timestamp": "2026-03-10T11:05:32.115145"
+    },
+    {
+      "players": [
+        "mc_d15",
+        "dummy_RANDOM"
+      ],
+      "winner": "dummy_RANDOM",
+      "scores": [
+        6,
+        5
+      ],
+      "timestamp": "2026-03-10T11:05:32.800090"
+    },
+    {
+      "players": [
+        "dummy_RANDOM",
+        "mc_d20"
+      ],
+      "winner": "dummy_RANDOM",
+      "scores": [
+        5,
+        7
+      ],
+      "timestamp": "2026-03-10T11:05:33.485292"
+    },
+    {
+      "players": [
+        "mc_d3",
+        "mc_d1"
+      ],
+      "winner": "mc_d1",
+      "scores": [
+        6,
+        6
+      ],
+      "timestamp": "2026-03-10T11:05:34.172037"
+    },
+    {
+      "players": [
+        "mc_d1",
+        "mc_d6"
+      ],
+      "winner": "mc_d6",
+      "scores": [
+        6,
+        6
+      ],
+      "timestamp": "2026-03-10T11:05:49.263750"
+    },
+    {
+      "players": [
+        "mc_d8",
+        "mc_d1"
+      ],
+      "winner": "mc_d1",
+      "scores": [
+        5,
+        6
+      ],
+      "timestamp": "2026-03-10T11:05:49.950485"
+    },
+    {
+      "players": [
+        "mc_d1",
+        "mc_d10"
+      ],
+      "winner": "mc_d10",
+      "scores": [
+        4,
+        4
+      ],
+      "timestamp": "2026-03-10T11:05:50.637405"
+    },
+    {
+      "players": [
+        "mc_d1",
+        "mc_d15"
+      ],
+      "winner": "mc_d1",
+      "scores": [
+        4,
+        0
+      ],
+      "timestamp": "2026-03-10T11:08:09.286975"
+    }
+  ],
+  "config": {
+    "num_players": 2
+  },
+  "active": false
+}
