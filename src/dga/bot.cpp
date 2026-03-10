@@ -149,7 +149,14 @@ double Bot::evaluate(const SimState& base,
     double score = 0.0;
 
     for (int t = 0; t < steps; t++) {
-        if (sim.game_over) break;
+        if (sim.game_over) {
+            if (cumulative_eval) {
+                double final_eval = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_);
+                for (int r = t; r < steps; r++) score += final_eval * (1.0 + r);
+            }
+            if (sim.winner == 1 - my_id_) score -= 100.0;
+            break;
+        }
 
         // Set moves for all our alive snakes
         for (int s = 0; s < (int)alive_ids.size(); s++) {
@@ -165,12 +172,12 @@ double Bot::evaluate(const SimState& base,
 
         if (cumulative_eval) {
             double weight = 1.0 + t;
-            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k)) * weight;
+            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_)) * weight;
         }
     }
 
     if (!cumulative_eval) {
-        score = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k);
+        score = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_);
     }
     return score;
 }

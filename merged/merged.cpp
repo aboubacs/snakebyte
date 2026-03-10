@@ -59,7 +59,6 @@ struct SimSnake {
     std::vector<SimPos> body;
     SimDir dir = SIM_UP;
     bool alive = true;
-
     SimPos head() const { return body[0]; }
     int length() const { return (int)body.size(); }
 };
@@ -169,9 +168,56 @@ struct SimState {
         return 0.5 * total / count;
     }
 
+    // Height advantage: average normalized head height across alive snakes.
+    // Higher = better (more mobility, further from bottom edge).
+    // Returns [0, 0.3]
+    double height_advantage(int player) const {
+        auto alive = get_alive_ids(player);
+        if (alive.empty() || height <= 0) return 0.0;
+        double total = 0.0;
+        int count = 0;
+        for (int id : alive) {
+            const SimSnake* sn = get_snake(id);
+            if (!sn || !sn->alive) continue;
+            total += (double)(height - 1 - sn->head().y) / (height - 1);
+            count++;
+        }
+        if (count == 0) return 0.0;
+        return 0.3 * total / count;
+    }
+
+    // Territory: count energies closer to me than to any opponent snake.
+    // Returns normalized [-0.5, 0.5] (my_share - opp_share).
+    double territory(int player) const {
+        if (energy.empty()) return 0.0;
+        auto my_alive = get_alive_ids(player);
+        auto opp_alive = get_alive_ids(1 - player);
+        if (my_alive.empty() && opp_alive.empty()) return 0.0;
+
+        int my_count = 0, opp_count = 0;
+        for (auto& e : energy) {
+            int my_best = 9999;
+            for (int id : my_alive) {
+                const SimSnake* sn = get_snake(id);
+                if (!sn || !sn->alive) continue;
+                int d = abs(sn->head().x - e.x) + abs(sn->head().y - e.y);
+                if (d < my_best) my_best = d;
+            }
+            int opp_best = 9999;
+            for (int id : opp_alive) {
+                const SimSnake* sn = get_snake(id);
+                if (!sn || !sn->alive) continue;
+                int d = abs(sn->head().x - e.x) + abs(sn->head().y - e.y);
+                if (d < opp_best) opp_best = d;
+            }
+            if (my_best < opp_best) my_count++;
+            else if (opp_best < my_best) opp_count++;
+        }
+        return 0.5 * (my_count - opp_count) / (int)energy.size();
+    }
+
 private:
-    void do_moves();
-    void do_eats();
+    void do_moves_and_eats();
     void do_beheadings();
     void apply_gravity();
     void check_game_over();
@@ -181,36 +227,32 @@ private:
 
 void SimState::step() {
     turn++;
-    do_moves();
-    do_eats();
+    do_moves_and_eats();
     do_beheadings();
     apply_gravity();
     check_game_over();
 }
 
-void SimState::do_moves() {
+void SimState::do_moves_and_eats() {
+    std::set<int> eaten_indices;
+
     for (auto& s : snakes) {
         if (!s.alive) continue;
         SimPos delta = sim_dir_delta(s.dir);
         SimPos new_head = {s.head().x + delta.x, s.head().y + delta.y};
         s.body.insert(s.body.begin(), new_head);
-        s.body.pop_back();
-    }
-}
 
-void SimState::do_eats() {
-    std::set<int> eaten_indices;
-
-    for (auto& s : snakes) {
-        if (!s.alive) continue;
-        SimPos head = s.head();
-
+        // Check if head lands on energy — if so, keep tail (grow); otherwise remove it
+        bool ate = false;
         for (int i = 0; i < (int)energy.size(); i++) {
-            if (energy[i] == head && !eaten_indices.count(i)) {
-                s.body.push_back(s.body.back());
+            if (energy[i] == new_head && !eaten_indices.count(i)) {
                 eaten_indices.insert(i);
+                ate = true;
                 break;
             }
+        }
+        if (!ate) {
+            s.body.pop_back();
         }
     }
 
@@ -372,7 +414,7 @@ void SimState::check_game_over() {
     }
 }
 
-// ===== sga/bot.hpp =====
+// ===== cga/bot.hpp =====
 
 #include <iostream>
 #include <string>
@@ -400,6 +442,7 @@ public:
     int pop_size = 50;
     double mutation_rate = 0.15;
     bool cumulative_eval = true;
+    int elite_k = 3;  // number of elite opponents to evaluate against
     int energy_k = 3;
 
 private:
@@ -414,36 +457,51 @@ private:
 
     SimState state_;
 
-    // Best individual from previous turn (shifted)
-    Individual prev_best_;
+    // Best individuals from previous turn
+    Individual prev_best_my_;
+    Individual prev_best_opp_;
 
-    // All-time best individual
-    ScoredIndividual all_time_best_;
-    bool has_all_time_best_ = false;
-
+    // Get initial directions for alive snakes
     std::vector<SimDir> get_initial_dirs(const std::vector<int>& alive_ids) const;
 
+    // Generate a random individual respecting no-reverse
     Individual random_individual(int len, int num_snakes,
                                  const std::vector<SimDir>& initial_dirs) const;
 
+    // Repair reverse moves after crossover
     void repair(Individual& ind, const std::vector<SimDir>& initial_dirs) const;
 
+    // Crossover operators
     Individual crossover_time_split(const Individual& a, const Individual& b,
                                      const std::vector<SimDir>& initial_dirs) const;
     Individual crossover_snake_split(const Individual& a, const Individual& b,
                                       int num_snakes,
                                       const std::vector<SimDir>& initial_dirs) const;
 
+    // Mutate an individual in place
     void mutate(Individual& ind, const std::vector<SimDir>& initial_dirs) const;
 
-    double evaluate(const SimState& base, const std::vector<int>& alive_ids,
-                    const Individual& ind) const;
+    // Evaluate: simulate my_ind vs opp_ind, return score from player's perspective
+    double evaluate_matchup(const SimState& base,
+                            const std::vector<int>& my_alive,
+                            const Individual& my_ind,
+                            const std::vector<int>& opp_alive,
+                            const Individual& opp_ind,
+                            int eval_player) const;
 
-    // Tournament selection: pick best of k random candidates
+    // Score an individual against a set of elite opponents
+    double score_against_elite(const SimState& base,
+                               const std::vector<int>& my_alive,
+                               const Individual& ind,
+                               const std::vector<int>& opp_alive,
+                               const std::vector<ScoredIndividual>& opp_elite,
+                               int eval_player) const;
+
+    // Select a parent via fitness-proportional selection
     int select_parent(const std::vector<ScoredIndividual>& pop) const;
 };
 
-// ===== sga/bot.cpp =====
+// ===== cga/bot.cpp =====
 
 static SimDir parse_body_direction(const SimPos& head, const SimPos& neck) {
     int dx = head.x - neck.x;
@@ -625,18 +683,39 @@ void Bot::mutate(Individual& ind, const std::vector<SimDir>& initial_dirs) const
     }
 }
 
-double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
-                     const Individual& ind) const {
+double Bot::evaluate_matchup(const SimState& base,
+                              const std::vector<int>& my_alive,
+                              const Individual& my_ind,
+                              const std::vector<int>& opp_alive,
+                              const Individual& opp_ind,
+                              int eval_player) const {
     SimState sim = base;
-    int steps = (int)ind.size();
+    int steps = (int)my_ind.size();
     double score = 0.0;
 
     for (int t = 0; t < steps; t++) {
-        if (sim.game_over) break;
+        if (sim.game_over) {
+            if (cumulative_eval) {
+                double final_eval = sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k) + sim.height_advantage(eval_player) - sim.height_advantage(1 - eval_player) + sim.territory(eval_player);
+                for (int r = t; r < steps; r++) score += final_eval * (1.0 + r);
+            }
+            if (sim.winner == 1 - eval_player) score -= 100.0;
+            break;
+        }
 
-        for (int s = 0; s < (int)alive_ids.size(); s++) {
-            if (s < (int)ind[t].size()) {
-                sim.set_dir(alive_ids[s], ind[t][s]);
+        // Set our moves
+        for (int s = 0; s < (int)my_alive.size(); s++) {
+            if (s < (int)my_ind[t].size()) {
+                sim.set_dir(my_alive[s], my_ind[t][s]);
+            }
+        }
+
+        // Set opponent moves
+        if (t < (int)opp_ind.size()) {
+            for (int s = 0; s < (int)opp_alive.size(); s++) {
+                if (s < (int)opp_ind[t].size()) {
+                    sim.set_dir(opp_alive[s], opp_ind[t][s]);
+                }
             }
         }
 
@@ -644,152 +723,236 @@ double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
 
         if (cumulative_eval) {
             double weight = 1.0 + t;
-            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k)) * weight;
+            score += (sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k) + sim.height_advantage(eval_player) - sim.height_advantage(1 - eval_player) + sim.territory(eval_player)) * weight;
         }
     }
 
     if (!cumulative_eval) {
-        score = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k);
+        score = sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k) + sim.height_advantage(eval_player) - sim.height_advantage(1 - eval_player) + sim.territory(eval_player);
     }
     return score;
 }
 
-// Tournament selection: pick best of 4 random candidates (strong selective pressure)
-int Bot::select_parent(const std::vector<ScoredIndividual>& pop) const {
-    int best = rand() % (int)pop.size();
-    for (int i = 1; i < 4; i++) {
-        int c = rand() % (int)pop.size();
-        if (pop[c].score > pop[best].score) best = c;
+double Bot::score_against_elite(const SimState& base,
+                                 const std::vector<int>& my_alive,
+                                 const Individual& ind,
+                                 const std::vector<int>& opp_alive,
+                                 const std::vector<ScoredIndividual>& opp_elite,
+                                 int eval_player) const {
+    if (opp_elite.empty()) {
+        // No opponents yet, evaluate with opponent holding direction
+        Individual empty_opp;
+        return evaluate_matchup(base, my_alive, ind, opp_alive, empty_opp, eval_player);
     }
-    return best;
+
+    // Average score against elite opponents (worst-case would be min, but avg is more stable)
+    double total = 0.0;
+    int k = std::min(elite_k, (int)opp_elite.size());
+    for (int i = 0; i < k; i++) {
+        total += evaluate_matchup(base, my_alive, ind, opp_alive, opp_elite[i].seq, eval_player);
+    }
+    return total / k;
+}
+
+int Bot::select_parent(const std::vector<ScoredIndividual>& pop) const {
+    double min_score = pop[0].score;
+    for (auto& p : pop) {
+        if (p.score < min_score) min_score = p.score;
+    }
+
+    double total = 0.0;
+    for (auto& p : pop) {
+        total += (p.score - min_score + 1.0);
+    }
+
+    double r = (double)rand() / RAND_MAX * total;
+    double cumulative = 0.0;
+    for (int i = 0; i < (int)pop.size(); i++) {
+        cumulative += (pop[i].score - min_score + 1.0);
+        if (r <= cumulative) return i;
+    }
+    return (int)pop.size() - 1;
+}
+
+// Helper: shift an individual from previous turn, pad to depth
+static Individual shift_and_pad(const Individual& prev, int target_depth,
+                                 int num_snakes, const std::vector<SimDir>& initial_dirs) {
+    Individual shifted;
+    for (int t = 1; t < (int)prev.size(); t++) {
+        shifted.push_back(prev[t]);
+    }
+    std::vector<SimDir> pad_dirs(num_snakes);
+    for (int s = 0; s < num_snakes; s++) {
+        pad_dirs[s] = shifted.empty() ? initial_dirs[s] : shifted.back()[s];
+    }
+    while ((int)shifted.size() < target_depth) {
+        std::vector<SimDir> moves(num_snakes);
+        for (int s = 0; s < num_snakes; s++) {
+            SimDir d = sim_random_dir_no_reverse(pad_dirs[s]);
+            moves[s] = d;
+            pad_dirs[s] = d;
+        }
+        shifted.push_back(moves);
+    }
+    shifted.resize(target_depth);
+    return shifted;
 }
 
 // ===== Main think loop =====
 
 void Bot::think() {
-    auto alive_ids = state_.get_alive_ids(my_id_);
+    auto my_alive = state_.get_alive_ids(my_id_);
+    auto opp_alive = state_.get_alive_ids(1 - my_id_);
 
-    if (alive_ids.empty()) {
+    if (my_alive.empty()) {
         std::cout << "WAIT" << std::endl;
         return;
     }
 
-    int num_snakes = (int)alive_ids.size();
-    auto initial_dirs = get_initial_dirs(alive_ids);
+    int my_n = (int)my_alive.size();
+    int opp_n = (int)opp_alive.size();
+    auto my_dirs = get_initial_dirs(my_alive);
+    auto opp_dirs = get_initial_dirs(opp_alive);
 
     auto start = std::chrono::steady_clock::now();
     auto hard_deadline = start + std::chrono::milliseconds(38);
 
-    // Initialize population
-    std::vector<ScoredIndividual> pop;
-    pop.reserve(pop_size);
+    // --- Initialize my population ---
+    std::vector<ScoredIndividual> my_pop;
+    my_pop.reserve(pop_size);
 
-    // Seed with shifted previous best
-    if (!prev_best_.empty()) {
-        Individual shifted;
-        for (int t = 1; t < (int)prev_best_.size(); t++) {
-            shifted.push_back(prev_best_[t]);
-        }
-        std::vector<SimDir> pad_dirs(num_snakes);
-        for (int s = 0; s < num_snakes; s++) {
-            pad_dirs[s] = shifted.empty() ? initial_dirs[s] : shifted.back()[s];
-        }
-        while ((int)shifted.size() < depth) {
-            std::vector<SimDir> moves(num_snakes);
-            for (int s = 0; s < num_snakes; s++) {
-                SimDir d = sim_random_dir_no_reverse(pad_dirs[s]);
-                moves[s] = d;
-                pad_dirs[s] = d;
-            }
-            shifted.push_back(moves);
-        }
-        shifted.resize(depth);
-        repair(shifted, initial_dirs);
-
-        double score = evaluate(state_, alive_ids, shifted);
-        pop.push_back({shifted, score});
+    if (!prev_best_my_.empty()) {
+        auto shifted = shift_and_pad(prev_best_my_, depth, my_n, my_dirs);
+        repair(shifted, my_dirs);
+        my_pop.push_back({shifted, 0.0});
+    }
+    while ((int)my_pop.size() < pop_size) {
+        my_pop.push_back({random_individual(depth, my_n, my_dirs), 0.0});
     }
 
-    // Fill rest with random individuals
-    while ((int)pop.size() < pop_size) {
-        auto ind = random_individual(depth, num_snakes, initial_dirs);
-        double score = evaluate(state_, alive_ids, ind);
-        pop.push_back({ind, score});
-    }
+    // --- Initialize opponent population ---
+    std::vector<ScoredIndividual> opp_pop;
+    opp_pop.reserve(pop_size);
 
-    // Track all-time best
-    has_all_time_best_ = false;
-    for (auto& p : pop) {
-        if (!has_all_time_best_ || p.score > all_time_best_.score) {
-            all_time_best_ = p;
-            has_all_time_best_ = true;
+    if (!prev_best_opp_.empty() && opp_n > 0) {
+        auto shifted = shift_and_pad(prev_best_opp_, depth, opp_n, opp_dirs);
+        repair(shifted, opp_dirs);
+        opp_pop.push_back({shifted, 0.0});
+    }
+    if (opp_n > 0) {
+        while ((int)opp_pop.size() < pop_size) {
+            opp_pop.push_back({random_individual(depth, opp_n, opp_dirs), 0.0});
         }
     }
 
-    // Generational evolution
-    int generations = 0;
+    // --- Initial scoring: score my pop with no opponent elite yet ---
+    // Score opponent pop first so we have elite for my pop
+    int opp_id = 1 - my_id_;
+    std::vector<ScoredIndividual> my_elite, opp_elite;
+
+    // Bootstrap: score opp against empty my elite
+    for (auto& ind : opp_pop) {
+        ind.score = score_against_elite(state_, opp_alive, ind.seq, my_alive, my_elite, opp_id);
+    }
+    std::sort(opp_pop.begin(), opp_pop.end(),
+              [](const ScoredIndividual& a, const ScoredIndividual& b) { return a.score > b.score; });
+    opp_elite.assign(opp_pop.begin(), opp_pop.begin() + std::min(elite_k, (int)opp_pop.size()));
+
+    // Score my pop against opp elite
+    for (auto& ind : my_pop) {
+        ind.score = score_against_elite(state_, my_alive, ind.seq, opp_alive, opp_elite, my_id_);
+    }
+    std::sort(my_pop.begin(), my_pop.end(),
+              [](const ScoredIndividual& a, const ScoredIndividual& b) { return a.score > b.score; });
+    my_elite.assign(my_pop.begin(), my_pop.begin() + std::min(elite_k, (int)my_pop.size()));
+
+    // --- Coevolution loop: alternate generations ---
+    int my_gens = 0, opp_gens = 0;
+    bool evolve_mine = true;  // alternate
+
     while (std::chrono::steady_clock::now() < hard_deadline) {
-        std::vector<ScoredIndividual> next_pop;
-        next_pop.reserve(pop_size);
-
-        // Elitism: carry over the all-time best
-        next_pop.push_back(all_time_best_);
-
-        // Fill the rest with children
-        while ((int)next_pop.size() < pop_size) {
-            int pa = select_parent(pop);
-            int pb = select_parent(pop);
-            while (pb == pa && pop.size() > 1) pb = select_parent(pop);
+        if (evolve_mine || opp_pop.empty()) {
+            // Evolve my population
+            int pa = select_parent(my_pop);
+            int pb = select_parent(my_pop);
+            while (pb == pa && my_pop.size() > 1) pb = select_parent(my_pop);
 
             Individual child;
-            if (num_snakes > 1 && rand() % 2) {
-                child = crossover_snake_split(pop[pa].seq, pop[pb].seq,
-                                               num_snakes, initial_dirs);
+            if (my_n > 1 && rand() % 2) {
+                child = crossover_snake_split(my_pop[pa].seq, my_pop[pb].seq, my_n, my_dirs);
             } else {
-                child = crossover_time_split(pop[pa].seq, pop[pb].seq, initial_dirs);
+                child = crossover_time_split(my_pop[pa].seq, my_pop[pb].seq, my_dirs);
             }
+            mutate(child, my_dirs);
 
-            mutate(child, initial_dirs);
+            double score = score_against_elite(state_, my_alive, child, opp_alive, opp_elite, my_id_);
 
-            double score = evaluate(state_, alive_ids, child);
-            next_pop.push_back({child, score});
-
-            // Update all-time best
-            if (score > all_time_best_.score) {
-                all_time_best_ = {child, score};
+            if (score > my_pop.back().score) {
+                my_pop.back() = {child, score};
+                std::sort(my_pop.begin(), my_pop.end(),
+                          [](const ScoredIndividual& a, const ScoredIndividual& b) { return a.score > b.score; });
+                my_elite.assign(my_pop.begin(), my_pop.begin() + std::min(elite_k, (int)my_pop.size()));
             }
+            my_gens++;
+        } else {
+            // Evolve opponent population
+            int pa = select_parent(opp_pop);
+            int pb = select_parent(opp_pop);
+            while (pb == pa && opp_pop.size() > 1) pb = select_parent(opp_pop);
+
+            Individual child;
+            if (opp_n > 1 && rand() % 2) {
+                child = crossover_snake_split(opp_pop[pa].seq, opp_pop[pb].seq, opp_n, opp_dirs);
+            } else {
+                child = crossover_time_split(opp_pop[pa].seq, opp_pop[pb].seq, opp_dirs);
+            }
+            mutate(child, opp_dirs);
+
+            double score = score_against_elite(state_, opp_alive, child, my_alive, my_elite, opp_id);
+
+            if (score > opp_pop.back().score) {
+                opp_pop.back() = {child, score};
+                std::sort(opp_pop.begin(), opp_pop.end(),
+                          [](const ScoredIndividual& a, const ScoredIndividual& b) { return a.score > b.score; });
+                opp_elite.assign(opp_pop.begin(), opp_pop.begin() + std::min(elite_k, (int)opp_pop.size()));
+            }
+            opp_gens++;
         }
 
-        pop = std::move(next_pop);
-        generations++;
+        evolve_mine = !evolve_mine;
     }
 
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - start).count();
     std::cerr << "t" << turn_ << " d=" << depth
               << " pop=" << pop_size
-              << " gens=" << generations
-              << " best=" << all_time_best_.score
+              << " k=" << elite_k
+              << " mgens=" << my_gens
+              << " ogens=" << opp_gens
               << " " << elapsed << "ms" << std::endl;
 
     // Store best for next turn
-    prev_best_ = all_time_best_.seq;
+    prev_best_my_ = my_pop[0].seq;
+    if (!opp_pop.empty()) {
+        prev_best_opp_ = opp_pop[0].seq;
+    }
 
     // Output first move
     const char* dir_names[] = {"UP", "DOWN", "LEFT", "RIGHT"};
     std::string out;
-    for (int s = 0; s < num_snakes; s++) {
+    for (int s = 0; s < my_n; s++) {
         if (!out.empty()) out += ";";
-        SimDir d = all_time_best_.seq[0][s];
-        out += std::to_string(alive_ids[s]) + " " + dir_names[d]
-             + " sga_d" + std::to_string(depth)
+        SimDir d = my_pop[0].seq[0][s];
+        out += std::to_string(my_alive[s]) + " " + dir_names[d]
+             + " cga_d" + std::to_string(depth)
              + "_p" + std::to_string(pop_size)
-             + "_g" + std::to_string(generations);
+             + "_k" + std::to_string(elite_k)
+             + "_g" + std::to_string(my_gens);
     }
     std::cout << out << std::endl;
 }
 
-// ===== sga/main.cpp =====
+// ===== cga/main.cpp =====
 #pragma GCC optimize("-O3")
 #pragma GCC optimize("inline")
 #pragma GCC optimize("omit-frame-pointer")
@@ -815,6 +978,9 @@ int main() {
 #endif
 #ifdef BOT_CUMEVAL
     bot.cumulative_eval = BOT_CUMEVAL;
+#endif
+#ifdef BOT_ELITE_K
+    bot.elite_k = BOT_ELITE_K;
 #endif
 #ifdef BOT_ENERGY_K
     bot.energy_k = BOT_ENERGY_K;

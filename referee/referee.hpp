@@ -45,7 +45,6 @@ struct Snakebot {
     Direction dir = UP;
     bool alive = true;
     std::string debug_text;
-
     Pos head() const { return body[0]; }
     int length() const { return (int)body.size(); }
 };
@@ -162,8 +161,7 @@ struct GameState {
 
 private:
     // Game phases (called by step in order)
-    void do_moves();
-    void do_eats();
+    void do_moves_and_eats();
     void do_beheadings();
 
     // Apply gravity with intercoiled group logic

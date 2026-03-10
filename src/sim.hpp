@@ -53,7 +53,6 @@ struct SimSnake {
     std::vector<SimPos> body;
     SimDir dir = SIM_UP;
     bool alive = true;
-
     SimPos head() const { return body[0]; }
     int length() const { return (int)body.size(); }
 };
@@ -163,9 +162,56 @@ struct SimState {
         return 0.5 * total / count;
     }
 
+    // Height advantage: average normalized head height across alive snakes.
+    // Higher = better (more mobility, further from bottom edge).
+    // Returns [0, 0.3]
+    double height_advantage(int player) const {
+        auto alive = get_alive_ids(player);
+        if (alive.empty() || height <= 0) return 0.0;
+        double total = 0.0;
+        int count = 0;
+        for (int id : alive) {
+            const SimSnake* sn = get_snake(id);
+            if (!sn || !sn->alive) continue;
+            total += (double)(height - 1 - sn->head().y) / (height - 1);
+            count++;
+        }
+        if (count == 0) return 0.0;
+        return 0.3 * total / count;
+    }
+
+    // Territory: count energies closer to me than to any opponent snake.
+    // Returns normalized [-0.5, 0.5] (my_share - opp_share).
+    double territory(int player) const {
+        if (energy.empty()) return 0.0;
+        auto my_alive = get_alive_ids(player);
+        auto opp_alive = get_alive_ids(1 - player);
+        if (my_alive.empty() && opp_alive.empty()) return 0.0;
+
+        int my_count = 0, opp_count = 0;
+        for (auto& e : energy) {
+            int my_best = 9999;
+            for (int id : my_alive) {
+                const SimSnake* sn = get_snake(id);
+                if (!sn || !sn->alive) continue;
+                int d = abs(sn->head().x - e.x) + abs(sn->head().y - e.y);
+                if (d < my_best) my_best = d;
+            }
+            int opp_best = 9999;
+            for (int id : opp_alive) {
+                const SimSnake* sn = get_snake(id);
+                if (!sn || !sn->alive) continue;
+                int d = abs(sn->head().x - e.x) + abs(sn->head().y - e.y);
+                if (d < opp_best) opp_best = d;
+            }
+            if (my_best < opp_best) my_count++;
+            else if (opp_best < my_best) opp_count++;
+        }
+        return 0.5 * (my_count - opp_count) / (int)energy.size();
+    }
+
 private:
-    void do_moves();
-    void do_eats();
+    void do_moves_and_eats();
     void do_beheadings();
     void apply_gravity();
     void check_game_over();

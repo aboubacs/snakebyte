@@ -193,7 +193,14 @@ double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
     bool has_opp_moves = !opp_ind.empty();
 
     for (int t = 0; t < steps; t++) {
-        if (sim.game_over) break;
+        if (sim.game_over) {
+            if (cumulative_eval) {
+                double final_eval = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_);
+                for (int r = t; r < steps; r++) score += final_eval * (1.0 + r);
+            }
+            if (sim.winner == 1 - my_id_) score -= 100.0;
+            break;
+        }
 
         // Set our moves
         for (int s = 0; s < (int)alive_ids.size(); s++) {
@@ -215,12 +222,12 @@ double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
 
         if (cumulative_eval) {
             double weight = 1.0 + t;
-            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k)) * weight;
+            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_)) * weight;
         }
     }
 
     if (!cumulative_eval) {
-        score = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k);
+        score = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_);
     }
     return score;
 }
@@ -235,7 +242,14 @@ double Bot::evaluate_opp(const SimState& base, const std::vector<int>& opp_alive
     double score = 0.0;
 
     for (int t = 0; t < steps; t++) {
-        if (sim.game_over) break;
+        if (sim.game_over) {
+            if (cumulative_eval) {
+                double final_eval = sim.eval(opp_id) + sim.energy_proximity(opp_id, energy_k) - sim.energy_proximity(my_id_, energy_k) + sim.height_advantage(opp_id) - sim.height_advantage(my_id_) + sim.territory(opp_id);
+                for (int r = t; r < steps; r++) score += final_eval * (1.0 + r);
+            }
+            if (sim.winner == my_id_) score -= 100.0;
+            break;
+        }
 
         // Set opponent moves
         for (int s = 0; s < (int)opp_alive_ids.size(); s++) {
@@ -250,12 +264,12 @@ double Bot::evaluate_opp(const SimState& base, const std::vector<int>& opp_alive
 
         if (cumulative_eval) {
             double weight = 1.0 + t;
-            score += (sim.eval(opp_id) + sim.energy_proximity(opp_id, energy_k) - sim.energy_proximity(my_id_, energy_k)) * weight;
+            score += (sim.eval(opp_id) + sim.energy_proximity(opp_id, energy_k) - sim.energy_proximity(my_id_, energy_k) + sim.height_advantage(opp_id) - sim.height_advantage(my_id_) + sim.territory(opp_id)) * weight;
         }
     }
 
     if (!cumulative_eval) {
-        score = sim.eval(opp_id) + sim.energy_proximity(opp_id, energy_k) - sim.energy_proximity(my_id_, energy_k);
+        score = sim.eval(opp_id) + sim.energy_proximity(opp_id, energy_k) - sim.energy_proximity(my_id_, energy_k) + sim.height_advantage(opp_id) - sim.height_advantage(my_id_) + sim.territory(opp_id);
     }
     return score;
 }
@@ -406,25 +420,27 @@ void Bot::think() {
     auto opp_dirs = get_initial_dirs(opp_alive);
 
     auto start = std::chrono::steady_clock::now();
-    int total_ms = 40;
-    int opp_ms = (int)(total_ms * opp_time_pct);
+    auto hard_deadline = start + std::chrono::milliseconds(38);
 
-    // Phase 1: Predict opponent moves using GA from their perspective
+    // Phase 1: Predict opponent moves — use opp_time_pct of remaining time
     int opp_gens = 0;
     Individual empty_moves;
-    if (!opp_alive.empty() && opp_ms > 0) {
-        auto opp_deadline = start + std::chrono::milliseconds(opp_ms);
+    if (!opp_alive.empty() && opp_time_pct > 0) {
+        auto now = std::chrono::steady_clock::now();
+        auto remaining = hard_deadline - now;
+        auto opp_budget = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::duration<double>(remaining) * opp_time_pct);
+        auto opp_deadline = now + opp_budget;
         opp_moves_ = run_ga(opp_alive, opp_dirs, opp_depth, nullptr,
                             opp_deadline, true, my_alive, empty_moves, opp_gens);
     } else {
         opp_moves_.clear();
     }
 
-    // Phase 2: Run our GA using predicted opponent moves
-    auto my_deadline = start + std::chrono::milliseconds(total_ms);
+    // Phase 2: Run our GA using predicted opponent moves — use all remaining time
     int my_gens = 0;
     Individual best = run_ga(my_alive, my_dirs, depth, &prev_best_,
-                             my_deadline, false, opp_alive, opp_moves_, my_gens);
+                             hard_deadline, false, opp_alive, opp_moves_, my_gens);
 
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - start).count();

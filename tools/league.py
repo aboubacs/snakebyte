@@ -96,9 +96,15 @@ class Pool:
         if n != 2:
             return random.sample(self.versions, n)
 
-        # Player 1: weighted random by RD (higher RD = more likely to be picked)
-        rd_weights = [self.rd.get(v, DEFAULT_RD) for v in self.versions]
-        p1 = random.choices(self.versions, weights=rd_weights, k=1)[0]
+        # Priority: versions with < 10 matches are always picked as P1
+        games = self.get_games_played()
+        newcomers = [v for v in self.versions if games.get(v, 0) < 100]
+        if newcomers:
+            p1 = random.choice(newcomers)
+        else:
+            # Player 1: weighted random by RD (higher RD = more likely to be picked)
+            rd_weights = [self.rd.get(v, DEFAULT_RD) for v in self.versions]
+            p1 = random.choices(self.versions, weights=rd_weights, k=1)[0]
 
         # Player 2: weighted random among others, preferring close ELO
         others = [v for v in self.versions if v != p1]

@@ -2,36 +2,32 @@
 
 void SimState::step() {
     turn++;
-    do_moves();
-    do_eats();
+    do_moves_and_eats();
     do_beheadings();
     apply_gravity();
     check_game_over();
 }
 
-void SimState::do_moves() {
+void SimState::do_moves_and_eats() {
+    std::set<int> eaten_indices;
+
     for (auto& s : snakes) {
         if (!s.alive) continue;
         SimPos delta = sim_dir_delta(s.dir);
         SimPos new_head = {s.head().x + delta.x, s.head().y + delta.y};
         s.body.insert(s.body.begin(), new_head);
-        s.body.pop_back();
-    }
-}
 
-void SimState::do_eats() {
-    std::set<int> eaten_indices;
-
-    for (auto& s : snakes) {
-        if (!s.alive) continue;
-        SimPos head = s.head();
-
+        // Check if head lands on energy — if so, keep tail (grow); otherwise remove it
+        bool ate = false;
         for (int i = 0; i < (int)energy.size(); i++) {
-            if (energy[i] == head && !eaten_indices.count(i)) {
-                s.body.push_back(s.body.back());
+            if (energy[i] == new_head && !eaten_indices.count(i)) {
                 eaten_indices.insert(i);
+                ate = true;
                 break;
             }
+        }
+        if (!ate) {
+            s.body.pop_back();
         }
     }
 

@@ -536,38 +536,32 @@ bool GameState::parse_actions(int player_id, const std::string& action_str) {
 
 void GameState::step() {
     turn++;
-    do_moves();
-    do_eats();
+    do_moves_and_eats();
     do_beheadings();
     apply_gravity();
     check_game_over();
 }
 
-// Phase 1: All snakes move (extend head in direction, remove tail)
-void GameState::do_moves() {
-    for (auto& s : snakes) {
-        if (!s.alive) continue;
-        Pos new_head = s.head() + dir_delta(s.dir);
-        s.body.insert(s.body.begin(), new_head);
-        s.body.pop_back();  // Always remove tail in move phase
-    }
-}
-
-// Phase 2: Check eating — if head is on energy, grow (re-add tail segment)
-void GameState::do_eats() {
+// Phase 1+2: Move and eat — extend head, only remove tail if not eating
+void GameState::do_moves_and_eats() {
     std::set<int> eaten_indices;
 
     for (auto& s : snakes) {
         if (!s.alive) continue;
-        Pos head = s.head();
+        Pos new_head = s.head() + dir_delta(s.dir);
+        s.body.insert(s.body.begin(), new_head);
 
+        // Check if head lands on energy — if so, keep tail (grow); otherwise remove it
+        bool ate = false;
         for (int i = 0; i < (int)energy.size(); i++) {
-            if (energy[i] == head && !eaten_indices.count(i)) {
-                // Snake eats: grow by duplicating tail
-                s.body.push_back(s.body.back());
+            if (energy[i] == new_head && !eaten_indices.count(i)) {
                 eaten_indices.insert(i);
+                ate = true;
                 break;
             }
+        }
+        if (!ate) {
+            s.body.pop_back();
         }
     }
 

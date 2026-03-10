@@ -191,7 +191,14 @@ double Bot::evaluate_matchup(const SimState& base,
     double score = 0.0;
 
     for (int t = 0; t < steps; t++) {
-        if (sim.game_over) break;
+        if (sim.game_over) {
+            if (cumulative_eval) {
+                double final_eval = sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k) + sim.height_advantage(eval_player) - sim.height_advantage(1 - eval_player) + sim.territory(eval_player);
+                for (int r = t; r < steps; r++) score += final_eval * (1.0 + r);
+            }
+            if (sim.winner == 1 - eval_player) score -= 100.0;
+            break;
+        }
 
         // Set our moves
         for (int s = 0; s < (int)my_alive.size(); s++) {
@@ -213,12 +220,12 @@ double Bot::evaluate_matchup(const SimState& base,
 
         if (cumulative_eval) {
             double weight = 1.0 + t;
-            score += (sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k)) * weight;
+            score += (sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k) + sim.height_advantage(eval_player) - sim.height_advantage(1 - eval_player) + sim.territory(eval_player)) * weight;
         }
     }
 
     if (!cumulative_eval) {
-        score = sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k);
+        score = sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k) + sim.height_advantage(eval_player) - sim.height_advantage(1 - eval_player) + sim.territory(eval_player);
     }
     return score;
 }
