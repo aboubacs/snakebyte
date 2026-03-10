@@ -140,6 +140,35 @@ struct SimState {
         return count_body_parts(player) - count_body_parts(1 - player);
     }
 
+    // Distance heuristic: average of 1/(1+dist) for up to k closest energies per snake.
+    // Normalized to [0, 0.5) so it never outweighs eating (+1 from eval).
+    double energy_proximity(int player, int k = 3) const {
+        auto alive = get_alive_ids(player);
+        if (alive.empty() || energy.empty()) return 0.0;
+
+        double total = 0.0;
+        int count = 0;
+        for (int id : alive) {
+            const SimSnake* sn = get_snake(id);
+            if (!sn || !sn->alive) continue;
+            SimPos head = sn->head();
+
+            std::vector<int> dists;
+            dists.reserve(energy.size());
+            for (auto& e : energy) {
+                dists.push_back(abs(head.x - e.x) + abs(head.y - e.y));
+            }
+            int take = std::min((int)dists.size(), k);
+            std::partial_sort(dists.begin(), dists.begin() + take, dists.end());
+            for (int i = 0; i < take; i++) {
+                total += 1.0 / (1.0 + dists[i]);
+                count++;
+            }
+        }
+        if (count == 0) return 0.0;
+        return 0.5 * total / count;
+    }
+
 private:
     void do_moves();
     void do_eats();
@@ -343,7 +372,7 @@ void SimState::check_game_over() {
     }
 }
 
-// ===== bot.hpp =====
+// ===== ga/bot.hpp =====
 
 #include <iostream>
 #include <string>
@@ -353,13 +382,25 @@ void SimState::check_game_over() {
 #include <cstdlib>
 
 
+// An individual is a sequence of moves: [step][snake]
+using Individual = std::vector<std::vector<SimDir>>;
+
+struct ScoredIndividual {
+    Individual seq;
+    double score;
+};
+
 class Bot {
 public:
     void init();
     void read_turn();
     void think();
 
-    int depth = 10;  // configurable rollout depth
+    int depth = 10;
+    int pop_size = 50;
+    double mutation_rate = 0.15;
+    bool cumulative_eval = true;
+    int energy_k = 3;
 
 private:
     int my_id_ = 0;
@@ -371,26 +412,40 @@ private:
     std::vector<int> my_snake_ids_;
     std::vector<int> opp_snake_ids_;
 
-    // Current game state rebuilt each turn
     SimState state_;
 
-    // Best move sequence from previous turn (shifted by 1)
-    // Outer: turn index in sequence, Inner: one SimDir per alive snake
-    std::vector<std::vector<SimDir>> prev_best_seq_;
+    // Best individual from previous turn
+    Individual prev_best_;
 
-    // Build a SimState from current parsed data
-    SimState build_state() const;
+    // Get initial directions for alive snakes
+    std::vector<SimDir> get_initial_dirs(const std::vector<int>& alive_ids) const;
 
-    // Generate a random move sequence of given length for our snakes
-    std::vector<std::vector<SimDir>> random_sequence(int len, int num_snakes,
-                                                      const std::vector<int>& alive_ids) const;
+    // Generate a random individual respecting no-reverse
+    Individual random_individual(int len, int num_snakes,
+                                 const std::vector<SimDir>& initial_dirs) const;
 
-    // Simulate a sequence and return eval score
-    int simulate(const SimState& base, const std::vector<int>& alive_ids,
-                 const std::vector<std::vector<SimDir>>& seq) const;
+    // Repair reverse moves after crossover
+    void repair(Individual& ind, const std::vector<SimDir>& initial_dirs) const;
+
+    // Crossover operators
+    Individual crossover_time_split(const Individual& a, const Individual& b,
+                                     const std::vector<SimDir>& initial_dirs) const;
+    Individual crossover_snake_split(const Individual& a, const Individual& b,
+                                      int num_snakes,
+                                      const std::vector<SimDir>& initial_dirs) const;
+
+    // Mutate an individual in place
+    void mutate(Individual& ind, const std::vector<SimDir>& initial_dirs) const;
+
+    // Evaluate an individual
+    double evaluate(const SimState& base, const std::vector<int>& alive_ids,
+                    const Individual& ind) const;
+
+    // Select a parent via fitness-proportional selection
+    int select_parent(const std::vector<ScoredIndividual>& pop) const;
 };
 
-// ===== bot.cpp =====
+// ===== ga/bot.cpp =====
 
 static SimDir parse_body_direction(const SimPos& head, const SimPos& neck) {
     int dx = head.x - neck.x;
@@ -427,7 +482,7 @@ void Bot::read_turn() {
     state_.width = width_;
     state_.height = height_;
     state_.grid = grid_;
-    state_.turn = turn_ - 1;  // step() will increment
+    state_.turn = turn_ - 1;
     state_.game_over = false;
     state_.winner = -1;
     state_.energy.clear();
@@ -458,14 +513,12 @@ void Bot::read_turn() {
         snake.id = id;
         snake.alive = true;
 
-        // Determine owner
         bool is_mine = false;
         for (int mid : my_snake_ids_) {
             if (mid == id) { is_mine = true; break; }
         }
         snake.owner = is_mine ? my_id_ : (1 - my_id_);
 
-        // Parse body: "x1,y1:x2,y2:..."
         std::istringstream bs(body_str);
         std::string segment;
         while (std::getline(bs, segment, ':')) {
@@ -476,7 +529,6 @@ void Bot::read_turn() {
             snake.body.push_back({cx, cy});
         }
 
-        // Infer direction from head and neck
         if (snake.body.size() >= 2) {
             snake.dir = parse_body_direction(snake.body[0], snake.body[1]);
         }
@@ -485,50 +537,151 @@ void Bot::read_turn() {
     }
 }
 
-std::vector<std::vector<SimDir>> Bot::random_sequence(int len, int num_snakes,
-                                                      const std::vector<int>& alive_ids) const {
-    // Track current direction per snake to avoid backwards moves
-    std::vector<SimDir> cur_dirs(num_snakes);
-    for (int s = 0; s < num_snakes; s++) {
-        const SimSnake* sn = nullptr;
-        for (auto& ss : state_.snakes)
-            if (ss.id == alive_ids[s]) { sn = &ss; break; }
-        cur_dirs[s] = sn ? sn->dir : SIM_UP;
-    }
+// ===== GA helpers =====
 
-    std::vector<std::vector<SimDir>> seq(len);
-    for (int t = 0; t < len; t++) {
-        seq[t].resize(num_snakes);
-        for (int s = 0; s < num_snakes; s++) {
-            SimDir d = sim_random_dir_no_reverse(cur_dirs[s]);
-            seq[t][s] = d;
-            cur_dirs[s] = d;
-        }
+std::vector<SimDir> Bot::get_initial_dirs(const std::vector<int>& alive_ids) const {
+    std::vector<SimDir> dirs;
+    for (int id : alive_ids) {
+        const SimSnake* sn = state_.get_snake(id);
+        dirs.push_back(sn ? sn->dir : SIM_UP);
     }
-    return seq;
+    return dirs;
 }
 
-int Bot::simulate(const SimState& base, const std::vector<int>& alive_ids,
-                  const std::vector<std::vector<SimDir>>& seq) const {
+Individual Bot::random_individual(int len, int num_snakes,
+                                   const std::vector<SimDir>& initial_dirs) const {
+    std::vector<SimDir> cur = initial_dirs;
+    Individual ind(len);
+    for (int t = 0; t < len; t++) {
+        ind[t].resize(num_snakes);
+        for (int s = 0; s < num_snakes; s++) {
+            SimDir d = sim_random_dir_no_reverse(cur[s]);
+            ind[t][s] = d;
+            cur[s] = d;
+        }
+    }
+    return ind;
+}
+
+void Bot::repair(Individual& ind, const std::vector<SimDir>& initial_dirs) const {
+    int num_snakes = (int)initial_dirs.size();
+    std::vector<SimDir> prev = initial_dirs;
+    for (auto& step : ind) {
+        for (int s = 0; s < num_snakes; s++) {
+            if (step[s] == sim_opposite(prev[s])) {
+                step[s] = prev[s];  // keep going same direction rather than reverse
+            }
+            prev[s] = step[s];
+        }
+    }
+}
+
+Individual Bot::crossover_time_split(const Individual& a, const Individual& b,
+                                      const std::vector<SimDir>& initial_dirs) const {
+    int len = (int)a.size();
+    int split = 1 + rand() % (len - 1);  // [1, len-1]
+    Individual child(len);
+    for (int t = 0; t < len; t++) {
+        child[t] = (t < split) ? a[t] : b[t];
+    }
+    repair(child, initial_dirs);
+    return child;
+}
+
+Individual Bot::crossover_snake_split(const Individual& a, const Individual& b,
+                                       int num_snakes,
+                                       const std::vector<SimDir>& initial_dirs) const {
+    // For each snake, randomly pick which parent to take from
+    std::vector<bool> use_a(num_snakes);
+    for (int s = 0; s < num_snakes; s++) {
+        use_a[s] = rand() % 2;
+    }
+
+    int len = (int)a.size();
+    Individual child(len);
+    for (int t = 0; t < len; t++) {
+        child[t].resize(num_snakes);
+        for (int s = 0; s < num_snakes; s++) {
+            child[t][s] = use_a[s] ? a[t][s] : b[t][s];
+        }
+    }
+    repair(child, initial_dirs);
+    return child;
+}
+
+void Bot::mutate(Individual& ind, const std::vector<SimDir>& initial_dirs) const {
+    int num_snakes = (int)initial_dirs.size();
+    bool mutated = false;
+
+    for (int t = 0; t < (int)ind.size(); t++) {
+        for (int s = 0; s < num_snakes; s++) {
+            if ((rand() % 1000) < (int)(mutation_rate * 1000)) {
+                // Get the previous direction for this snake
+                SimDir prev = (t > 0) ? ind[t - 1][s] : initial_dirs[s];
+                ind[t][s] = sim_random_dir_no_reverse(prev);
+                mutated = true;
+            }
+        }
+    }
+
+    // If we mutated, repair downstream to fix any new reverses
+    if (mutated) {
+        repair(ind, initial_dirs);
+    }
+}
+
+double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
+                     const Individual& ind) const {
     SimState sim = base;
-    int steps = (int)seq.size();
+    int steps = (int)ind.size();
+    double score = 0.0;
 
     for (int t = 0; t < steps; t++) {
         if (sim.game_over) break;
 
-        // Apply our moves
         for (int s = 0; s < (int)alive_ids.size(); s++) {
-            if (s < (int)seq[t].size()) {
-                sim.set_dir(alive_ids[s], seq[t][s]);
+            if (s < (int)ind[t].size()) {
+                sim.set_dir(alive_ids[s], ind[t][s]);
             }
         }
 
-        // Opponent doesn't move (keeps current direction)
         sim.step();
+
+        if (cumulative_eval) {
+            double weight = 1.0 + t;
+            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k)) * weight;
+        }
     }
 
-    return sim.eval(my_id_);
+    if (!cumulative_eval) {
+        score = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k);
+    }
+    return score;
 }
+
+int Bot::select_parent(const std::vector<ScoredIndividual>& pop) const {
+    // Fitness-proportional selection with shifted scores
+    double min_score = pop[0].score;
+    for (auto& p : pop) {
+        if (p.score < min_score) min_score = p.score;
+    }
+
+    // Shift so all scores are >= 1.0
+    double total = 0.0;
+    for (auto& p : pop) {
+        total += (p.score - min_score + 1.0);
+    }
+
+    double r = (double)rand() / RAND_MAX * total;
+    double cumulative = 0.0;
+    for (int i = 0; i < (int)pop.size(); i++) {
+        cumulative += (pop[i].score - min_score + 1.0);
+        if (r <= cumulative) return i;
+    }
+    return (int)pop.size() - 1;
+}
+
+// ===== Main think loop =====
 
 void Bot::think() {
     auto alive_ids = state_.get_alive_ids(my_id_);
@@ -539,33 +692,27 @@ void Bot::think() {
     }
 
     int num_snakes = (int)alive_ids.size();
-    int rollout_depth = depth;
+    auto initial_dirs = get_initial_dirs(alive_ids);
 
-    // Time budget: 40ms per turn (referee enforces 50ms)
     auto start = std::chrono::steady_clock::now();
     auto deadline = start + std::chrono::milliseconds(40);
 
-    int best_eval = -999999;
-    std::vector<std::vector<SimDir>> best_seq;
+    // Initialize population
+    std::vector<ScoredIndividual> pop;
+    pop.reserve(pop_size);
 
-    // Seed with previous best sequence shifted by 1
-    if (!prev_best_seq_.empty()) {
-        std::vector<std::vector<SimDir>> shifted;
-        for (int t = 1; t < (int)prev_best_seq_.size(); t++) {
-            shifted.push_back(prev_best_seq_[t]);
+    // Seed with shifted previous best
+    if (!prev_best_.empty()) {
+        Individual shifted;
+        for (int t = 1; t < (int)prev_best_.size(); t++) {
+            shifted.push_back(prev_best_[t]);
         }
-        // Pad with random moves to fill depth, respecting no-reverse
-        // Track direction from end of shifted sequence (or from current state)
+        // Pad to depth
         std::vector<SimDir> pad_dirs(num_snakes);
         for (int s = 0; s < num_snakes; s++) {
-            if (!shifted.empty()) {
-                pad_dirs[s] = shifted.back()[s];
-            } else {
-                const SimSnake* sn = state_.get_snake(alive_ids[s]);
-                pad_dirs[s] = sn ? sn->dir : SIM_UP;
-            }
+            pad_dirs[s] = shifted.empty() ? initial_dirs[s] : shifted.back()[s];
         }
-        while ((int)shifted.size() < rollout_depth) {
+        while ((int)shifted.size() < depth) {
             std::vector<SimDir> moves(num_snakes);
             for (int s = 0; s < num_snakes; s++) {
                 SimDir d = sim_random_dir_no_reverse(pad_dirs[s]);
@@ -574,66 +721,93 @@ void Bot::think() {
             }
             shifted.push_back(moves);
         }
-        shifted.resize(rollout_depth);
+        shifted.resize(depth);
+        repair(shifted, initial_dirs);
 
-        int eval = simulate(state_, alive_ids, shifted);
-        if (eval > best_eval) {
-            best_eval = eval;
-            best_seq = shifted;
-        }
+        double score = evaluate(state_, alive_ids, shifted);
+        pop.push_back({shifted, score});
     }
 
-    // Monte Carlo: generate random sequences and keep the best
-    int iterations = 0;
+    // Fill rest with random individuals
+    while ((int)pop.size() < pop_size) {
+        auto ind = random_individual(depth, num_snakes, initial_dirs);
+        double score = evaluate(state_, alive_ids, ind);
+        pop.push_back({ind, score});
+    }
+
+    // Sort by score descending
+    std::sort(pop.begin(), pop.end(),
+              [](const ScoredIndividual& a, const ScoredIndividual& b) {
+                  return a.score > b.score;
+              });
+
+    // Evolve
+    int generations = 0;
     while (std::chrono::steady_clock::now() < deadline) {
-        auto seq = random_sequence(rollout_depth, num_snakes, alive_ids);
-        int eval = simulate(state_, alive_ids, seq);
+        // Select two parents
+        int pa = select_parent(pop);
+        int pb = select_parent(pop);
+        while (pb == pa && pop.size() > 1) pb = select_parent(pop);
 
-        if (eval > best_eval) {
-            best_eval = eval;
-            best_seq = seq;
+        // Crossover
+        Individual child;
+        if (num_snakes > 1 && rand() % 2) {
+            child = crossover_snake_split(pop[pa].seq, pop[pb].seq,
+                                           num_snakes, initial_dirs);
+        } else {
+            child = crossover_time_split(pop[pa].seq, pop[pb].seq, initial_dirs);
         }
-        iterations++;
+
+        // Mutate
+        mutate(child, initial_dirs);
+
+        // Evaluate
+        double score = evaluate(state_, alive_ids, child);
+
+        // Replace worst if child is better
+        if (score > pop.back().score) {
+            pop.back() = {child, score};
+            // Re-sort
+            std::sort(pop.begin(), pop.end(),
+                      [](const ScoredIndividual& a, const ScoredIndividual& b) {
+                          return a.score > b.score;
+                      });
+        }
+
+        generations++;
     }
 
-    // Store best sequence for next turn
-    prev_best_seq_ = best_seq;
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start).count();
+    std::cerr << "t" << turn_ << " d=" << depth
+              << " pop=" << pop_size
+              << " gens=" << generations
+              << " best=" << pop[0].score
+              << " " << elapsed << "ms" << std::endl;
 
-    // Output first moves of best sequence
-    if (best_seq.empty()) {
-        // Fallback: random (no reverse)
-        const char* dirs[] = {"UP", "DOWN", "LEFT", "RIGHT"};
-        std::string out;
-        for (int s = 0; s < num_snakes; s++) {
-            if (!out.empty()) out += ";";
-            const SimSnake* sn = state_.get_snake(alive_ids[s]);
-            SimDir cur = sn ? sn->dir : SIM_UP;
-            SimDir d = sim_random_dir_no_reverse(cur);
-            out += std::to_string(alive_ids[s]) + " " + dirs[d];
-        }
-        std::cout << out << std::endl;
-        return;
-    }
+    // Store best for next turn
+    prev_best_ = pop[0].seq;
 
+    // Output first move
     const char* dir_names[] = {"UP", "DOWN", "LEFT", "RIGHT"};
     std::string out;
     for (int s = 0; s < num_snakes; s++) {
         if (!out.empty()) out += ";";
-        SimDir d = best_seq[0][s];
+        SimDir d = pop[0].seq[0][s];
         out += std::to_string(alive_ids[s]) + " " + dir_names[d]
-             + " mc_d" + std::to_string(rollout_depth)
-             + "_i" + std::to_string(iterations)
-             + "_e" + std::to_string(best_eval);
+             + " ga_d" + std::to_string(depth)
+             + "_p" + std::to_string(pop_size)
+             + "_g" + std::to_string(generations)
+             + "_e" + std::to_string(pop[0].score);
     }
     std::cout << out << std::endl;
 }
 
-// ===== main.cpp =====
+// ===== ga/main.cpp =====
 #pragma GCC optimize("-O3")
 #pragma GCC optimize("inline")
 #pragma GCC optimize("omit-frame-pointer")
 #pragma GCC optimize("unroll-loops")
-
 
 #include <cstdlib>
 #include <ctime>
@@ -646,6 +820,18 @@ int main() {
 
 #ifdef BOT_DEPTH
     bot.depth = BOT_DEPTH;
+#endif
+#ifdef BOT_POP
+    bot.pop_size = BOT_POP;
+#endif
+#ifdef BOT_MUTRATE
+    bot.mutation_rate = BOT_MUTRATE / 100.0;
+#endif
+#ifdef BOT_CUMEVAL
+    bot.cumulative_eval = BOT_CUMEVAL;
+#endif
+#ifdef BOT_ENERGY_K
+    bot.energy_k = BOT_ENERGY_K;
 #endif
 
     bot.init();

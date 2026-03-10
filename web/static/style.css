@@ -43,7 +43,7 @@ header h1 {
 /* Layout */
 .container {
     display: grid;
-    grid-template-columns: 260px 1fr 320px;
+    grid-template-columns: 220px 1fr 480px;
     height: calc(100vh - 48px);
 }
 
@@ -116,6 +116,18 @@ button {
     padding: 4px 8px;
 }
 .btn-ghost:hover { color: var(--text); background: var(--card-alt); }
+
+.btn-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+    line-height: 1;
+    opacity: 0.3;
+}
+.btn-remove:hover { opacity: 1; color: #dc2626; }
 
 .btn-icon {
     background: transparent;

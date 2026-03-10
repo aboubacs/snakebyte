@@ -11,10 +11,6 @@
 
 // ===== Map generation helpers =====
 
-static int rand_range(int lo, int hi) {
-    return lo + rand() % (hi - lo + 1);
-}
-
 static double rand_double() {
     return (double)rand() / RAND_MAX;
 }
@@ -103,13 +99,37 @@ static int count_wall_neighbors_8(const std::vector<std::string>& grid, int w, i
     return count;
 }
 
-// ===== Map generation =====
+// ===== Map generation (ported from Java GridMaker) =====
+
+// Check if cell (x,y) has 8-adjacency to any position in the set
+static bool adjacent8_to_set(int x, int y, const std::set<Pos>& positions) {
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            if (dx == 0 && dy == 0) continue;
+            if (positions.count({x + dx, y + dy})) return true;
+        }
+    }
+    return false;
+}
+
+// getFreeAbove: count consecutive free (non-wall) cells above (x, y) exclusive
+static int get_free_above(const std::vector<std::string>& grid, int x, int y) {
+    int count = 0;
+    for (int ny = y - 1; ny >= 0; ny--) {
+        if (grid[ny][x] == '#') break;
+        count++;
+    }
+    return count;
+}
 
 void GameState::init_default_map() {
     srand(time(nullptr) ^ getpid());
 
-    // Height 10-24, width = round(height * 1.8), made even
-    height = rand_range(10, 24);
+    // Height: MIN=10, MAX=24, skew=0.3
+    double skew = 0.3;
+    height = 10 + (int)round(pow(rand_double(), skew) * (24 - 10));
+    if (height < 10) height = 10;
+    if (height > 24) height = 24;
     width = (int)round(height * 1.8);
     if (width % 2 != 0) width++;
 
@@ -118,17 +138,23 @@ void GameState::init_default_map() {
     // Bottom row is all walls
     grid[height - 1] = std::string(width, '#');
 
-    // Probabilistic wall placement, row by row from bottom-1 up
+    // Probabilistic wall placement across FULL width
     double b = 5.0 + rand_double() * 10.0;
     for (int y = height - 2; y >= 0; y--) {
-        double yNorm = (double)(height - 1 - y) / (double)height;
+        double yNorm = (double)(height - 1 - y) / (double)(height - 1);
         double blockChance = 1.0 / (yNorm + 0.1) / b;
-        // Only place on left half, mirror to right
-        for (int x = 0; x < width / 2; x++) {
+        for (int x = 0; x < width; x++) {
             if (rand_double() < blockChance) {
                 grid[y][x] = '#';
-                grid[y][width - 1 - x] = '#';
             }
+        }
+    }
+
+    // Mirror: left half copied to right half (x-symmetry)
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width / 2; x++) {
+            int opp = width - 1 - x;
+            grid[y][opp] = grid[y][x];
         }
     }
 
@@ -147,131 +173,128 @@ void GameState::init_default_map() {
         }
     }
 
-    // Open up tight corridors: for each empty cell with 3+ wall neighbors (4-dir),
-    // remove one wall neighbor to widen the passage. Single pass, preserving symmetry.
+    // Tight-space removal: iterate until stable
+    // For each empty cell with 3+ wall neighbors (4-dir), find wall neighbors
+    // at same row or ABOVE (n.y <= c.y), shuffle, remove one + its mirror.
     {
-        for (int y = 1; y < height - 1; y++) {
-            for (int x = 0; x < width / 2; x++) {
-                if (grid[y][x] != '.') continue;
-                if (count_wall_neighbors_4(grid, width, height, x, y) >= 3) {
-                    // Find a wall neighbor to remove (prefer up)
-                    const int dx[] = {0, 0, -1, 1};
-                    const int dy[] = {-1, 1, 0, 0};
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    if (grid[y][x] != '.') continue;
+                    if (count_wall_neighbors_4(grid, width, height, x, y) < 3) continue;
+
+                    // Collect wall neighbors at same row or above
+                    struct Neighbor { int nx, ny; };
+                    std::vector<Neighbor> candidates;
+                    const int ddx[] = {0, 0, -1, 1};
+                    const int ddy[] = {-1, 1, 0, 0};
                     for (int d = 0; d < 4; d++) {
-                        int nx = x + dx[d], ny = y + dy[d];
-                        if (ny == height - 1) continue;  // Don't remove bottom row
-                        if (nx >= 0 && nx < width && ny >= 0 && ny < height && grid[ny][nx] == '#') {
-                            grid[ny][nx] = '.';
-                            grid[ny][width - 1 - nx] = '.';
-                            break;
+                        int nx = x + ddx[d], ny = y + ddy[d];
+                        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+                        if (grid[ny][nx] != '#') continue;
+                        if (ny <= y) {  // Same row or above
+                            candidates.push_back({nx, ny});
                         }
                     }
+                    if (candidates.empty()) continue;
+
+                    // Shuffle candidates
+                    for (int i = (int)candidates.size() - 1; i > 0; i--) {
+                        int j = rand() % (i + 1);
+                        std::swap(candidates[i], candidates[j]);
+                    }
+
+                    // Remove first candidate + its mirror
+                    auto& c = candidates[0];
+                    grid[c.ny][c.nx] = '.';
+                    int mx = width - 1 - c.nx;
+                    if (mx != c.nx) grid[c.ny][mx] = '.';
+                    changed = true;
                 }
             }
         }
     }
 
-    // Find and sink floating wall islands (not connected to bottom row)
+    // Sink the lowest island (Java: find bottom-connected component,
+    // count full rows from bottom in it, shift down randomly)
     {
-        // Find the main ground-connected wall component
-        std::set<Pos> ground_walls;
+        // Find bottom-connected wall component
+        std::set<Pos> bottom_component;
         std::set<Pos> visited;
         for (int x = 0; x < width; x++) {
             if (grid[height - 1][x] == '#' && !visited.count({x, height - 1})) {
                 auto region = flood_fill_walls(grid, width, height, x, height - 1, visited);
                 for (auto& p : region) {
-                    ground_walls.insert(p);
+                    bottom_component.insert(p);
                     visited.insert(p);
                 }
             }
         }
 
-        // Find floating islands and sink them (move down until they connect or hit bottom)
-        visited.clear();
-        for (auto& p : ground_walls) visited.insert(p);
-
-        for (int y = 0; y < height; y++) {
+        // Count how many full rows from the bottom are entirely in the island
+        int lowerBy = 0;
+        for (int y = height - 1; y >= 0; y--) {
+            // Check that every wall cell in this row belongs to the bottom component
+            bool row_all_island = true;
             for (int x = 0; x < width; x++) {
-                if (grid[y][x] != '#' || visited.count({x, y})) continue;
-                auto island = flood_fill_walls(grid, width, height, x, y, visited);
-                for (auto& p : island) visited.insert(p);
-
-                if (island.empty()) continue;
-
-                // Remove island from grid
-                for (auto& p : island) grid[p.y][p.x] = '.';
-
-                // Find how far down to move
-                int max_drop = height;
-                for (auto& p : island) {
-                    int drop = 0;
-                    for (int ny = p.y + 1; ny < height; ny++) {
-                        bool blocked = false;
-                        // Check if this position is occupied by ground wall or other island cell
-                        if (ground_walls.count({p.x, ny})) { blocked = true; }
-                        if (blocked) break;
-                        drop++;
-                    }
-                    max_drop = std::min(max_drop, drop);
+                if (grid[y][x] == '#' && !bottom_component.count({x, y})) {
+                    row_all_island = false;
+                    break;
                 }
+            }
+            if (row_all_island) {
+                lowerBy++;
+            } else {
+                break;
+            }
+        }
 
-                // Place island at new position
-                if (max_drop > 0) {
-                    for (auto& p : island) {
-                        int ny = p.y + max_drop;
-                        if (ny < height) {
-                            grid[ny][p.x] = '#';
-                        }
-                    }
-                } else {
-                    // Can't sink, put back
-                    for (auto& p : island) grid[p.y][p.x] = '#';
+        if (lowerBy >= 2) {
+            int shift = 2 + rand() % (lowerBy - 1);  // random in [2, lowerBy]
+            if (shift > lowerBy) shift = lowerBy;
+
+            // Collect all island cells
+            std::vector<Pos> cells(bottom_component.begin(), bottom_component.end());
+
+            // Remove island from grid
+            for (auto& p : cells) grid[p.y][p.x] = '.';
+
+            // Re-place shifted down by 'shift' (cells going off-grid are lost)
+            for (auto& p : cells) {
+                int ny = p.y + shift;
+                if (ny < height) {
+                    grid[ny][p.x] = '#';
                 }
             }
         }
     }
 
-    // Place apples on empty cells above platforms (on left half, mirrored)
-    // Target: roughly 5-10% of platform-top cells
-    {
-        std::vector<Pos> valid_spots;
-        for (int y = 0; y < height - 1; y++) {
-            for (int x = 0; x < width / 2; x++) {
-                if (grid[y][x] != '.') continue;
-                // Prefer cells above a platform
-                if (y + 1 < height && grid[y + 1][x] == '#') {
-                    valid_spots.push_back({x, y});
-                }
-            }
-        }
-        // Also add some floating energy on open cells
-        for (int y = 0; y < height - 1; y++) {
-            for (int x = 0; x < width / 2; x++) {
-                if (grid[y][x] != '.') continue;
-                if (rand_double() < 0.015) {
-                    int mx = width - 1 - x;
-                    energy.push_back({x, y});
-                    if (mx != x) energy.push_back({mx, y});
-                }
-            }
-        }
-        // Place on valid platform-top spots
-        for (auto& p : valid_spots) {
-            if (rand_double() < 0.15) {
-                int mx = width - 1 - p.x;
-                energy.push_back({p.x, p.y});
-                if (mx != p.x) energy.push_back({mx, p.y});
+    // Place apples: 2.5% on left-half empty cells, mirrored
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width / 2; x++) {
+            if (grid[y][x] != '.') continue;
+            if (rand_double() < 0.025) {
+                int mx = width - 1 - x;
+                energy.push_back({x, y});
+                if (mx != x) energy.push_back({mx, y});
             }
         }
     }
 
-    // Convert lone walls (0 wall neighbors in 8-adjacency, not bottom row) to apples
-    for (int y = 0; y < height - 1; y++) {
-        for (int x = 0; x < width; x++) {
+    // Convert lone walls (0 wall neighbors in 8-adjacency) to apples + mirror
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width / 2; x++) {
             if (grid[y][x] != '#') continue;
             if (count_wall_neighbors_8(grid, width, height, x, y) == 0) {
+                int mx = width - 1 - x;
                 grid[y][x] = '.';
                 energy.push_back({x, y});
+                if (mx != x) {
+                    grid[y][mx] = '.';
+                    energy.push_back({mx, y});
+                }
             }
         }
     }
@@ -280,38 +303,23 @@ void GameState::init_default_map() {
     energy.erase(std::remove_if(energy.begin(), energy.end(),
         [&](const Pos& p) { return grid[p.y][p.x] == '#'; }), energy.end());
 
-    // Find spawn locations: wall cells with 3 free cells above
-    struct SpawnCandidate {
-        int x, y;  // y = wall row, snake goes at y-1, y-2, y-3
-    };
+    // Find spawn locations
+    // DESIRED_SPAWNS=4, -1 if height<=15, -1 if height<=10
+    int desired_spawns = 4;
+    if (height <= 15) desired_spawns--;
+    if (height <= 10) desired_spawns--;
+
+    // Spawn candidates: wall cells with >= 3 free cells above
+    struct SpawnCandidate { int x, y; };
     std::vector<SpawnCandidate> candidates;
-
-    auto is_free = [&](int x, int y) -> bool {
-        if (x < 0 || x >= width || y < 0 || y >= height) return false;
-        if (grid[y][x] != '.') return false;
-        // Also check no energy at this pos
-        for (auto& e : energy) if (e.x == x && e.y == y) return false;
-        return true;
-    };
-
-    for (int y = 1; y < height; y++) {
-        for (int x = 0; x < width / 2; x++) {
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
             if (grid[y][x] != '#') continue;
-            // Need 3 free cells above
-            if (y - 3 < 0) continue;
-            if (!is_free(x, y - 1) || !is_free(x, y - 2) || !is_free(x, y - 3)) continue;
-            // Not too close to center
-            if (abs(x - width / 2) < 3) continue;
-            candidates.push_back({x, y});
+            if (get_free_above(grid, x, y) >= 3) {
+                candidates.push_back({x, y});
+            }
         }
     }
-
-    // Determine number of snakes per player based on height
-    int snakes_per_player = (height >= 16 && candidates.size() >= 2) ? 2 : 1;
-
-    // Select spawn positions, ensuring minimum distance between them
-    std::vector<SpawnCandidate> selected_spawns;
-    int min_dist = std::max(3, height / 4);
 
     // Shuffle candidates
     for (int i = (int)candidates.size() - 1; i > 0; i--) {
@@ -319,78 +327,107 @@ void GameState::init_default_map() {
         std::swap(candidates[i], candidates[j]);
     }
 
+    // Select spawns: not on center columns, not 8-adjacent to existing spawns or mirrors
+    std::vector<SpawnCandidate> selected_spawns;
+    std::set<Pos> spawn_cells;  // All spawn cell positions (including mirrors)
+
     for (auto& c : candidates) {
-        if ((int)selected_spawns.size() >= snakes_per_player) break;
+        if ((int)selected_spawns.size() >= desired_spawns) break;
+
+        // Not on center columns
+        if (c.x == width / 2 - 1 || c.x == width / 2) continue;
+
+        // Check 8-adjacency to existing spawn cells and their mirrors
+        // Spawn occupies (x, y-1), (x, y-2), (x, y-3) and mirror at (width-1-x, same y's)
         bool too_close = false;
-        for (auto& s : selected_spawns) {
-            if (abs(c.x - s.x) + abs(c.y - s.y) < min_dist) {
-                too_close = true;
-                break;
-            }
+        // Check all 3 cells of this spawn + mirror for adjacency to existing spawns
+        for (int dy = 1; dy <= 3; dy++) {
+            int sy = c.y - dy;
+            if (sy < 0) { too_close = true; break; }
+            if (adjacent8_to_set(c.x, sy, spawn_cells)) { too_close = true; break; }
+            int mx = width - 1 - c.x;
+            if (adjacent8_to_set(mx, sy, spawn_cells)) { too_close = true; break; }
         }
-        if (!too_close) {
-            selected_spawns.push_back(c);
+        if (too_close) continue;
+
+        // Also check the spawn base cell itself
+        if (adjacent8_to_set(c.x, c.y, spawn_cells)) continue;
+        int mx = width - 1 - c.x;
+        if (adjacent8_to_set(mx, c.y, spawn_cells)) continue;
+
+        // Verify mirror also has 3 free above
+        if (get_free_above(grid, mx, c.y) < 3) continue;
+
+        selected_spawns.push_back(c);
+
+        // Add spawn cells + mirror to the set
+        for (int dy = 0; dy <= 3; dy++) {
+            spawn_cells.insert({c.x, c.y - dy});
+            spawn_cells.insert({mx, c.y - dy});
         }
     }
 
-    // Fallback: if no valid spawns found, use bottom platform
-    if (selected_spawns.empty()) {
-        // Find any wall with space above
-        for (int x = 2; x < width / 2; x++) {
-            if (grid[height - 1][x] == '#' && height >= 4) {
-                // Clear 3 cells above
-                for (int dy = 1; dy <= 3; dy++) {
-                    grid[height - 1 - dy][x] = '.';
-                    grid[height - 1 - dy][width - 1 - x] = '.';
-                }
-                selected_spawns.push_back({x, height - 1});
-                break;
-            }
-        }
-    }
+    // Remove apples at spawn positions
+    energy.erase(std::remove_if(energy.begin(), energy.end(),
+        [&](const Pos& p) { return spawn_cells.count(p); }), energy.end());
 
-    // Create snakes: player 0 on left, player 1 mirrored on right
+    // Create snakes: player 0 on left (or as-is), player 1 mirrored
+    // Distribute spawns across players: each spawn creates a pair (left + mirror)
     int snake_id = 0;
     for (auto& sp : selected_spawns) {
-        // Player 0 snake (left side)
+        int lx = sp.x;
+        int rx = width - 1 - sp.x;
+
+        // Player 0 gets the left one, player 1 gets the right
+        // If spawn is already on right half, swap
+        if (lx > rx) std::swap(lx, rx);
+
         Snakebot s0;
         s0.id = snake_id++;
         s0.owner = 0;
-        // Head at top (y-3), body going down: body[0]=head
-        s0.body = {{sp.x, sp.y - 3}, {sp.x, sp.y - 2}, {sp.x, sp.y - 1}};
+        s0.body = {{lx, sp.y - 3}, {lx, sp.y - 2}, {lx, sp.y - 1}};
         s0.dir = UP;
         snakes.push_back(s0);
 
-        // Player 1 snake (mirrored)
         Snakebot s1;
         s1.id = snake_id++;
         s1.owner = 1;
-        int mx = width - 1 - sp.x;
-        s1.body = {{mx, sp.y - 3}, {mx, sp.y - 2}, {mx, sp.y - 1}};
+        s1.body = {{rx, sp.y - 3}, {rx, sp.y - 2}, {rx, sp.y - 1}};
         s1.dir = UP;
         snakes.push_back(s1);
     }
 
-    // If somehow no snakes were created, force a default setup
+    // Fallback: if no snakes were created, force a default setup
     if (snakes.empty()) {
-        Snakebot s0;
-        s0.id = 0; s0.owner = 0; s0.dir = UP;
-        s0.body = {{2, height - 4}, {2, height - 3}, {2, height - 2}};
-        snakes.push_back(s0);
+        // Clear space and place on bottom platform
+        for (int x = 2; x < width / 2; x++) {
+            if (grid[height - 1][x] == '#' && height >= 4) {
+                int mx = width - 1 - x;
+                for (int dy = 1; dy <= 3; dy++) {
+                    grid[height - 1 - dy][x] = '.';
+                    grid[height - 1 - dy][mx] = '.';
+                }
+                Snakebot s0;
+                s0.id = 0; s0.owner = 0; s0.dir = UP;
+                s0.body = {{x, height - 4}, {x, height - 3}, {x, height - 2}};
+                snakes.push_back(s0);
 
-        Snakebot s1;
-        s1.id = 1; s1.owner = 1; s1.dir = UP;
-        s1.body = {{width - 3, height - 4}, {width - 3, height - 3}, {width - 3, height - 2}};
-        snakes.push_back(s1);
+                Snakebot s1;
+                s1.id = 1; s1.owner = 1; s1.dir = UP;
+                s1.body = {{mx, height - 4}, {mx, height - 3}, {mx, height - 2}};
+                snakes.push_back(s1);
+                break;
+            }
+        }
     }
 
     // Remove any energy that overlaps with snake positions
-    std::set<Pos> snake_cells;
+    std::set<Pos> snake_pos;
     for (auto& s : snakes)
         for (auto& bp : s.body)
-            snake_cells.insert(bp);
+            snake_pos.insert(bp);
     energy.erase(std::remove_if(energy.begin(), energy.end(),
-        [&](const Pos& p) { return snake_cells.count(p); }), energy.end());
+        [&](const Pos& p) { return snake_pos.count(p); }), energy.end());
 }
 
 // ===== Protocol I/O =====

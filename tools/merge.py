@@ -108,8 +108,11 @@ def copy_to_clipboard(text):
         return False
 
 
-def merge():
-    entry = SRC_DIR / "main.cpp"
+def merge(bot_dir=None):
+    if bot_dir:
+        entry = SRC_DIR / bot_dir / "main.cpp"
+    else:
+        entry = SRC_DIR / "main.cpp"
     if not entry.exists():
         print(f"Error: {entry} not found", file=sys.stderr)
         sys.exit(1)
@@ -145,4 +148,5 @@ def merge():
 
 
 if __name__ == "__main__":
-    merge()
+    bot_dir = sys.argv[1] if len(sys.argv) > 1 else None
+    merge(bot_dir)

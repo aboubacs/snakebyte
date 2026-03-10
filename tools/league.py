@@ -5,6 +5,7 @@ Can run as CLI background runner or be used as a library by the web GUI.
 """
 
 import json
+import math
 import random
 import time
 import sys
@@ -87,7 +88,7 @@ class Pool:
         return str(BUILDS_DIR / f"{version}.out")
 
     def _select_players(self):
-        """Select the most uncertain matchup based on RD and H2H coverage."""
+        """Select a matchup: pick most uncertain player, then a nearby-ELO opponent."""
         n = self.config.get("num_players", 2)
         if len(self.versions) < n:
             raise ValueError(f"Need at least {n} versions in pool, have {len(self.versions)}")
@@ -95,29 +96,24 @@ class Pool:
         if n != 2:
             return random.sample(self.versions, n)
 
-        # Build H2H count for each pair
-        h2h_counts = {}
-        for m in self.matches:
-            ps = tuple(sorted(m["players"][:2]))
-            h2h_counts[ps] = h2h_counts.get(ps, 0) + 1
+        # Player 1: weighted random by RD (higher RD = more likely to be picked)
+        rd_weights = [self.rd.get(v, DEFAULT_RD) for v in self.versions]
+        p1 = random.choices(self.versions, weights=rd_weights, k=1)[0]
 
-        # Score each pair: higher = more uncertain = should play next
-        best_pair = None
-        best_score = -1
+        # Player 2: weighted random among others, preferring close ELO
+        others = [v for v in self.versions if v != p1]
+        p1_rating = self.ratings.get(p1, DEFAULT_RATING)
 
-        for a, b in combinations(self.versions, 2):
-            pair_key = tuple(sorted([a, b]))
-            rd_a = self.rd.get(a, DEFAULT_RD)
-            rd_b = self.rd.get(b, DEFAULT_RD)
-            h2h = h2h_counts.get(pair_key, 0)
+        # Weight by proximity: gaussian-like, sigma=300 ELO
+        # Smooth falloff: 300 away = 60% weight, 600 away = 13%
+        weights = []
+        for v in others:
+            diff = abs(self.ratings.get(v, DEFAULT_RATING) - p1_rating)
+            weights.append(math.exp(-0.5 * (diff / 300.0) ** 2))
 
-            score = rd_a + rd_b + 200.0 / (1.0 + h2h)
-            if score > best_score:
-                best_score = score
-                best_pair = [a, b]
+        p2 = random.choices(others, weights=weights, k=1)[0]
 
-        random.shuffle(best_pair)
-        return best_pair
+        return random.sample([p1, p2], 2)
 
     def run_single_match(self):
         """Pick most uncertain matchup and run a match. Returns match result dict."""
@@ -172,6 +168,18 @@ class Pool:
                 if p in counts:
                     counts[p] += 1
         return counts
+
+    def get_win_rates(self):
+        """Return dict of version -> win rate (0.0 to 1.0)."""
+        wins = {v: 0 for v in self.versions}
+        games = {v: 0 for v in self.versions}
+        for m in self.matches:
+            for p in m["players"]:
+                if p in games:
+                    games[p] += 1
+            if m.get("winner") and m["winner"] in wins:
+                wins[m["winner"]] += 1
+        return {v: (wins[v] / games[v] if games[v] > 0 else 0.0) for v in self.versions}
 
     def get_head_to_head(self, version):
         """Return H2H record for a version vs all others.

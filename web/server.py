@@ -31,6 +31,16 @@ match_counter = 0
 # SSE event queues per league
 league_events = {}
 
+# Per-pool locks to prevent concurrent load/save races
+_pool_locks = {}
+_pool_locks_lock = threading.Lock()
+
+def get_pool_lock(name):
+    with _pool_locks_lock:
+        if name not in _pool_locks:
+            _pool_locks[name] = threading.Lock()
+        return _pool_locks[name]
+
 
 # ===== Background match runner =====
 
@@ -41,23 +51,57 @@ def background_runner():
             pool_names = Pool.list_pools()
             ran_any = False
             for name in pool_names:
-                pool = Pool.load(name)
-                if not pool.active:
-                    continue
-                n = pool.config.get("num_players", 2)
-                if len(pool.versions) >= n:
-                    try:
-                        result = pool.run_single_match()
-                        ran_any = True
-                        players = result["players"]
-                        winner = result.get("winner") or "draw"
-                        print(f"[runner] {name}: {' vs '.join(players)} -> {winner}", flush=True)
-                        # Push SSE event
-                        if name in league_events:
-                            for q in league_events[name]:
-                                q.put(result)
-                    except Exception as e:
-                        print(f"[runner] Error in pool {name}: {e}", flush=True)
+                lock = get_pool_lock(name)
+                with lock:
+                    pool = Pool.load(name)
+                    if not pool.active:
+                        continue
+                    n = pool.config.get("num_players", 2)
+                    if len(pool.versions) < n:
+                        continue
+                    # Grab players before releasing lock for the match
+                    players_to_run = pool._select_players()
+
+                try:
+                    # Run match outside lock (slow I/O)
+                    player_cmds = [pool.get_executable(v) for v in players_to_run]
+                    from runner import run_match as _run_match
+                    game_log = _run_match(player_cmds)
+
+                    # Re-acquire lock to update state
+                    with lock:
+                        pool = Pool.load(name)  # reload fresh state
+                        winner_idx = game_log.get("winner", -1)
+                        winner = players_to_run[winner_idx] if winner_idx >= 0 else None
+
+                        r0 = pool.ratings[players_to_run[0]]
+                        r1 = pool.ratings[players_to_run[1]]
+                        from elo import update_ratings_2p, update_rd_after_game
+                        new_r0, new_r1 = update_ratings_2p(r0, r1, winner_idx)
+                        pool.ratings[players_to_run[0]] = new_r0
+                        pool.ratings[players_to_run[1]] = new_r1
+
+                        for v in players_to_run:
+                            pool.rd[v] = update_rd_after_game(pool.rd.get(v, 350.0))
+
+                        result = {
+                            "players": players_to_run,
+                            "winner": winner,
+                            "scores": game_log.get("scores", []),
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                        pool.matches.append(result)
+                        pool.save()
+
+                    ran_any = True
+                    players = result["players"]
+                    winner_str = result.get("winner") or "draw"
+                    print(f"[runner] {name}: {' vs '.join(players)} -> {winner_str}", flush=True)
+                    if name in league_events:
+                        for q in league_events[name]:
+                            q.put(result)
+                except Exception as e:
+                    print(f"[runner] Error in pool {name}: {e}", flush=True)
                 time.sleep(0.5)
             if not ran_any:
                 time.sleep(2.0)
@@ -167,6 +211,7 @@ def api_get_league(name):
         "rd": pool.rd,
         "rankings": rankings,
         "games_played": pool.get_games_played(),
+        "win_rates": pool.get_win_rates(),
         "matches": pool.matches[-50:],
         "config": pool.config,
         "active": pool.active,
@@ -176,10 +221,6 @@ def api_get_league(name):
 
 @app.route("/api/leagues/<name>/versions", methods=["POST"])
 def api_add_version_to_league(name):
-    pool = Pool.load(name)
-    if not pool.path.exists():
-        return jsonify({"error": "Pool not found"}), 404
-
     data = request.json
     version = data.get("version", "").strip()
     if not version:
@@ -189,15 +230,34 @@ def api_add_version_to_league(name):
     if not path.exists():
         return jsonify({"error": f"Build not found: {version}"}), 404
 
-    pool.add_version(version)
+    with get_pool_lock(name):
+        pool = Pool.load(name)
+        if not pool.path.exists():
+            return jsonify({"error": "Pool not found"}), 404
+        pool.add_version(version)
     return jsonify({"added": version})
+
+
+@app.route("/api/leagues/<name>/versions/<version>", methods=["DELETE"])
+def api_remove_version_from_league(name, version):
+    with get_pool_lock(name):
+        pool = Pool.load(name)
+        if not pool.path.exists():
+            return jsonify({"error": "Pool not found"}), 404
+        if version not in pool.versions:
+            return jsonify({"error": "Version not in pool"}), 404
+        pool.remove_version(version)
+    return jsonify({"removed": version})
 
 
 @app.route("/api/leagues/<name>/run", methods=["POST"])
 def api_run_league_matches(name):
-    pool = Pool.load(name)
-    if not pool.path.exists():
-        return jsonify({"error": "Pool not found"}), 404
+    lock = get_pool_lock(name)
+
+    with lock:
+        pool = Pool.load(name)
+        if not pool.path.exists():
+            return jsonify({"error": "Pool not found"}), 404
 
     data = request.json or {}
     count = data.get("count", 10)
@@ -205,7 +265,9 @@ def api_run_league_matches(name):
     results = []
     for _ in range(min(count, 100)):
         try:
-            result = pool.run_single_match()
+            with lock:
+                pool = Pool.load(name)
+                result = pool.run_single_match()
             results.append(result)
 
             if name in league_events:
@@ -215,6 +277,8 @@ def api_run_league_matches(name):
             results.append({"error": str(e)})
             break
 
+    with lock:
+        pool = Pool.load(name)
     return jsonify({
         "matches_run": len(results),
         "results": results,
@@ -225,12 +289,13 @@ def api_run_league_matches(name):
 
 @app.route("/api/leagues/<name>/active", methods=["POST"])
 def api_toggle_pool_active(name):
-    pool = Pool.load(name)
-    if not pool.path.exists():
-        return jsonify({"error": "Pool not found"}), 404
     data = request.json or {}
-    pool.active = data.get("active", not pool.active)
-    pool.save()
+    with get_pool_lock(name):
+        pool = Pool.load(name)
+        if not pool.path.exists():
+            return jsonify({"error": "Pool not found"}), 404
+        pool.active = data.get("active", not pool.active)
+        pool.save()
     return jsonify({"name": name, "active": pool.active})
 
 

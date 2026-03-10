@@ -7,7 +7,7 @@
 #include <chrono>
 #include <cstdlib>
 
-#include "sim.hpp"
+#include "../sim.hpp"
 
 class Bot {
 public:
@@ -16,6 +16,7 @@ public:
     void think();
 
     int depth = 10;  // configurable rollout depth
+    int energy_k = 3;
 
 private:
     int my_id_ = 0;
@@ -42,6 +43,6 @@ private:
                                                       const std::vector<int>& alive_ids) const;
 
     // Simulate a sequence and return eval score
-    int simulate(const SimState& base, const std::vector<int>& alive_ids,
-                 const std::vector<std::vector<SimDir>>& seq) const;
+    double simulate(const SimState& base, const std::vector<int>& alive_ids,
+                    const std::vector<std::vector<SimDir>>& seq) const;
 };

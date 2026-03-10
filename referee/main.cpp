@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <poll.h>
+#include <chrono>
 
 static const int FIRST_TURN_TIMEOUT_MS = 1000;
 static const int TURN_TIMEOUT_MS = 50;
@@ -36,6 +37,7 @@ bool launch_player(Player& p) {
     }
 
     if (pid == 0) {
+        setsid();  // new process group so we can kill the whole tree
         close(pipe_in[1]);
         close(pipe_out[0]);
         dup2(pipe_in[0], STDIN_FILENO);
@@ -67,22 +69,27 @@ void send_to_player(Player& p, const std::string& msg) {
     fflush(p.to_child);
 }
 
-// Read a line from player with timeout. Returns {line, true} on success, {"", false} on timeout/error.
-std::pair<std::string, bool> read_from_player(Player& p, int timeout_ms) {
+// Read a line from player with absolute deadline.
+// Returns {line, true} on success, {"", false} on timeout/error.
+std::pair<std::string, bool> read_from_player(Player& p,
+        std::chrono::steady_clock::time_point deadline) {
     std::string line;
     struct pollfd pfd;
     pfd.fd = p.from_child_fd;
     pfd.events = POLLIN;
 
     while (true) {
-        int ret = poll(&pfd, 1, timeout_ms);
-        if (ret <= 0) {
-            // Timeout or error
-            return {"", false};
-        }
+        auto now = std::chrono::steady_clock::now();
+        int remaining = (int)std::chrono::duration_cast<std::chrono::milliseconds>(
+            deadline - now).count();
+        if (remaining <= 0) return {"", false};
+
+        int ret = poll(&pfd, 1, remaining);
+        if (ret <= 0) return {"", false};
+
         char c;
         ssize_t n = read(p.from_child_fd, &c, 1);
-        if (n <= 0) return {"", false};  // EOF or error
+        if (n <= 0) return {"", false};
         if (c == '\n') break;
         if (c != '\r') line += c;
     }
@@ -94,8 +101,16 @@ void cleanup_players(std::vector<Player>& players) {
         if (p.to_child) fclose(p.to_child);
         if (p.from_child) fclose(p.from_child);
         if (p.pid > 0) {
-            kill(p.pid, SIGTERM);
-            waitpid(p.pid, nullptr, 0);
+            // Kill entire process group (shell + bot child)
+            kill(-p.pid, SIGTERM);
+            // Brief wait, then force kill if still alive
+            int status;
+            pid_t ret = waitpid(p.pid, &status, WNOHANG);
+            if (ret == 0) {
+                usleep(50000);  // 50ms grace
+                kill(-p.pid, SIGKILL);
+                waitpid(p.pid, nullptr, 0);
+            }
         }
     }
 }
@@ -132,6 +147,7 @@ int main(int argc, char* argv[]) {
     GameState state;
     state.init_default_map();
 
+    std::cerr << "[referee] === MATCH START ===" << std::endl;
     std::cerr << "[referee] Map " << state.width << "x" << state.height
               << ", " << state.snakes.size() << " snakes, "
               << state.energy.size() << " energy" << std::endl;
@@ -155,23 +171,27 @@ int main(int argc, char* argv[]) {
 
     // Game loop
     bool first_turn = true;
+    std::string end_reason = "normal";
     while (!state.game_over) {
         int timeout = first_turn ? FIRST_TURN_TIMEOUT_MS : TURN_TIMEOUT_MS;
 
-        // Send turn input
+        // Send turn input to all players, then start the clock
         std::string turn_input = state.build_turn_input();
         for (int i = 0; i < num_players; i++) {
             send_to_player(players[i], turn_input);
         }
+        auto deadline = std::chrono::steady_clock::now()
+            + std::chrono::milliseconds(timeout);
 
-        // Read actions
+        // Read actions (all players share the same deadline)
         std::vector<std::string> turn_actions;
         for (int i = 0; i < num_players; i++) {
-            auto [action, ok] = read_from_player(players[i], timeout);
+            auto [action, ok] = read_from_player(players[i], deadline);
             turn_actions.push_back(action);
 
             if (!ok) {
                 std::cerr << "Player " << i << " timed out (" << timeout << "ms)" << std::endl;
+                end_reason = "timeout_p" + std::to_string(i);
                 state.game_over = true;
                 state.winner = 1 - i;
                 break;
@@ -179,6 +199,7 @@ int main(int argc, char* argv[]) {
 
             if (!state.parse_actions(i, action)) {
                 std::cerr << "Invalid action from player " << i << ": " << action << std::endl;
+                end_reason = "invalid_action_p" + std::to_string(i);
                 state.game_over = true;
                 state.winner = 1 - i;
                 break;
@@ -195,6 +216,13 @@ int main(int argc, char* argv[]) {
 
         // Execute turn
         state.step();
+
+        if (state.turn % 50 == 0) {
+            int s0 = state.count_body_parts(0);
+            int s1 = state.count_body_parts(1);
+            std::cerr << "[referee] Turn " << state.turn
+                      << ": " << s0 << "-" << s1 << std::endl;
+        }
 
         all_actions.push_back(turn_actions);
         frames.push_back(state.frame_json());
@@ -216,6 +244,7 @@ int main(int argc, char* argv[]) {
     std::cout << "{\"num_players\":" << num_players
               << ",\"num_turns\":" << state.turn
               << ",\"winner\":" << state.winner
+              << ",\"end_reason\":\"" << end_reason << "\""
               << ",\"scores\":[" << score0 << "," << score1 << "]"
               << ",\"players\":[\"" << escape_json(players[0].cmd) << "\",\""
               << escape_json(players[1].cmd) << "\"]"

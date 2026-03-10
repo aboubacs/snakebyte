@@ -116,10 +116,11 @@ std::vector<std::vector<SimDir>> Bot::random_sequence(int len, int num_snakes,
     return seq;
 }
 
-int Bot::simulate(const SimState& base, const std::vector<int>& alive_ids,
-                  const std::vector<std::vector<SimDir>>& seq) const {
+double Bot::simulate(const SimState& base, const std::vector<int>& alive_ids,
+                     const std::vector<std::vector<SimDir>>& seq) const {
     SimState sim = base;
     int steps = (int)seq.size();
+    double score = 0.0;
 
     for (int t = 0; t < steps; t++) {
         if (sim.game_over) break;
@@ -133,9 +134,13 @@ int Bot::simulate(const SimState& base, const std::vector<int>& alive_ids,
 
         // Opponent doesn't move (keeps current direction)
         sim.step();
+
+        // Accumulate eval at each step, weighted so earlier steps matter more
+        double weight = 1.0 + t;
+        score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k)) * weight;
     }
 
-    return sim.eval(my_id_);
+    return score;
 }
 
 void Bot::think() {
@@ -153,7 +158,7 @@ void Bot::think() {
     auto start = std::chrono::steady_clock::now();
     auto deadline = start + std::chrono::milliseconds(40);
 
-    int best_eval = -999999;
+    double best_eval = -999999.0;
     std::vector<std::vector<SimDir>> best_seq;
 
     // Seed with previous best sequence shifted by 1
@@ -184,7 +189,7 @@ void Bot::think() {
         }
         shifted.resize(rollout_depth);
 
-        int eval = simulate(state_, alive_ids, shifted);
+        double eval = simulate(state_, alive_ids, shifted);
         if (eval > best_eval) {
             best_eval = eval;
             best_seq = shifted;
@@ -195,7 +200,7 @@ void Bot::think() {
     int iterations = 0;
     while (std::chrono::steady_clock::now() < deadline) {
         auto seq = random_sequence(rollout_depth, num_snakes, alive_ids);
-        int eval = simulate(state_, alive_ids, seq);
+        double eval = simulate(state_, alive_ids, seq);
 
         if (eval > best_eval) {
             best_eval = eval;
@@ -203,6 +208,12 @@ void Bot::think() {
         }
         iterations++;
     }
+
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start).count();
+    std::cerr << "t" << turn_ << " d=" << rollout_depth
+              << " iters=" << iterations << " best=" << best_eval
+              << " " << elapsed << "ms" << std::endl;
 
     // Store best sequence for next turn
     prev_best_seq_ = best_seq;

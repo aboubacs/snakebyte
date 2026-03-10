@@ -9,6 +9,27 @@ let currentPoolName = '';
 let expandedVersion = null;
 let autoRefreshInterval = null;
 
+// ===== Helpers =====
+function winRateColor(rate) {
+    // Gradient: red (0%) -> orange (25%) -> gray (50%) -> teal (75%) -> green (100%)
+    const r = rate * 100;
+    if (r <= 50) {
+        // red to gray: hsl(0, 70%, 45%) -> hsl(0, 0%, 55%)
+        const t = r / 50;
+        const h = 0;
+        const s = 70 * (1 - t);
+        const l = 45 + 10 * t;
+        return `hsl(${h}, ${s}%, ${l}%)`;
+    } else {
+        // gray to green: hsl(0, 0%, 55%) -> hsl(145, 65%, 38%)
+        const t = (r - 50) / 50;
+        const h = 145 * t;
+        const s = 65 * t;
+        const l = 55 - 17 * t;
+        return `hsl(${h}, ${s}%, ${l}%)`;
+    }
+}
+
 // ===== API =====
 async function api(url, opts = {}) {
     if (opts.body && typeof opts.body === 'object') {
@@ -67,7 +88,9 @@ async function runMatch() {
             currentMatch = result.log;
             currentFrame = 0;
             const winner = result.log.winner >= 0 ? result.players[result.log.winner] : 'draw';
-            statusEl.innerHTML = `<div class="status success">#${result.id} — ${winner}</div>`;
+            const endReason = result.log.end_reason && result.log.end_reason !== 'normal'
+                ? ` [${result.log.end_reason}]` : '';
+            statusEl.innerHTML = `<div class="status success">#${result.id} — ${winner}${endReason}</div>`;
             setupViewer();
         }
     } catch (e) {
@@ -138,6 +161,15 @@ function renderFrame() {
         ctx.fillStyle = '#09090b';
         ctx.font = '500 11px "SF Mono", Consolas, monospace';
         ctx.fillText(`P${i}: ${scores[i] || 0}`, x + 14, 14);
+    }
+
+    // End reason on last frame
+    const isLastFrame = currentFrame === currentMatch.frames.length - 1;
+    const endReason = currentMatch.end_reason;
+    if (isLastFrame && endReason && endReason !== 'normal') {
+        ctx.fillStyle = '#dc2626';
+        ctx.font = 'bold 11px "SF Mono", Consolas, monospace';
+        ctx.fillText(endReason.toUpperCase(), pad + 80 + 2 * 120, 14);
     }
 
     // --- Grid background ---
@@ -334,23 +366,35 @@ function renderRankings() {
     expandedVersion = null;
     const tbody = document.querySelector('#rankings-table tbody');
     if (!currentPool) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty">Select a pool to view rankings</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Select a pool to view rankings</td></tr>';
         return;
     }
     const rankings = currentPool.rankings || [];
     if (!rankings.length) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty">No versions in this pool</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">No versions in this pool</td></tr>';
         return;
     }
     const gp = currentPool.games_played || {};
-    tbody.innerHTML = rankings.map((v, i) =>
-        `<tr data-version="${v}"><td>${i + 1}</td><td>${v}</td><td>${gp[v] || 0}</td><td>${Math.round(currentPool.ratings[v] || 1500)}</td></tr>`
-    ).join('');
+    const wr = currentPool.win_rates || {};
+    tbody.innerHTML = rankings.map((v, i) => {
+        const rate = wr[v] || 0;
+        const pct = Math.round(rate * 100);
+        const wrColor = winRateColor(rate);
+        return `<tr data-version="${v}"><td>${i + 1}</td><td>${v}</td><td>${gp[v] || 0}</td><td>${Math.round(currentPool.ratings[v] || 1500)}</td><td style="color:${wrColor};font-weight:600">${pct}%</td><td><button class="btn-remove" onclick="removeVersion(event,'${v}')" title="Remove">&times;</button></td></tr>`;
+    }).join('');
 
     // Re-apply H2H if a version was selected
     if (prev && rankings.includes(prev)) {
         toggleH2H(prev);
     }
+}
+
+async function removeVersion(event, version) {
+    event.stopPropagation();
+    if (!currentPoolName) return;
+    if (!confirm(`Remove ${version} from pool?`)) return;
+    await api(`/api/leagues/${currentPoolName}/versions/${version}`, { method: 'DELETE' });
+    await loadPool(currentPoolName);
 }
 
 function clearH2H() {

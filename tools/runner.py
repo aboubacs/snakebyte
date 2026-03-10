@@ -23,13 +23,14 @@ def run_match(player_cmds, referee_path=None):
     cmd = [ref] + list(player_cmds)
     result = subprocess.run(
         cmd,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=None,  # inherit parent stderr so referee logs are visible
         text=True,
         timeout=120,
     )
 
     if result.returncode != 0:
-        raise RuntimeError(f"Referee exited with code {result.returncode}\nstderr: {result.stderr}")
+        raise RuntimeError(f"Referee exited with code {result.returncode}")
 
     try:
         game_log = json.loads(result.stdout)
