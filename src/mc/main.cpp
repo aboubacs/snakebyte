@@ -20,6 +20,12 @@ int main() {
 #ifdef BOT_ENERGY_K
     bot.energy_k = BOT_ENERGY_K;
 #endif
+#ifdef BOT_EVAL_DECAY
+    bot.eval_decay = BOT_EVAL_DECAY;
+#endif
+#ifdef BOT_CHEAT_FACTOR
+    bot.cheat_factor = BOT_CHEAT_FACTOR;
+#endif
 
     bot.init();
 

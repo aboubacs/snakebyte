@@ -98,7 +98,7 @@ class Pool:
 
         # Priority: versions with < 10 matches are always picked as P1
         games = self.get_games_played()
-        newcomers = [v for v in self.versions if games.get(v, 0) < 100]
+        newcomers = [v for v in self.versions if games.get(v, 0) < 300]
         if newcomers:
             p1 = random.choice(newcomers)
         else:

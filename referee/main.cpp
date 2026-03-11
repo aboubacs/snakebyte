@@ -11,8 +11,8 @@
 #include <poll.h>
 #include <chrono>
 
-static const int FIRST_TURN_TIMEOUT_MS = 1000;
-static const int TURN_TIMEOUT_MS = 50;
+static const int FIRST_TURN_TIMEOUT_MS = 5000;
+static const int TURN_TIMEOUT_MS = 250;
 
 struct Player {
     pid_t pid = -1;

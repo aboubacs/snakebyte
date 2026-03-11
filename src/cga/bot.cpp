@@ -194,7 +194,7 @@ double Bot::evaluate_matchup(const SimState& base,
         if (sim.game_over) {
             if (cumulative_eval) {
                 double final_eval = sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k) + sim.height_advantage(eval_player) - sim.height_advantage(1 - eval_player) + sim.territory(eval_player);
-                for (int r = t; r < steps; r++) score += final_eval * (1.0 + r);
+                for (int r = t; r < steps; r++) score += final_eval * (eval_decay ? 1.0 / (1.0 + r) : (1.0 + r));
             }
             if (sim.winner == 1 - eval_player) score -= 100.0;
             break;
@@ -219,7 +219,7 @@ double Bot::evaluate_matchup(const SimState& base,
         sim.step();
 
         if (cumulative_eval) {
-            double weight = 1.0 + t;
+            double weight = eval_decay ? 1.0 / (1.0 + t) : (1.0 + t);
             score += (sim.eval(eval_player) + sim.energy_proximity(eval_player, energy_k) - sim.energy_proximity(1 - eval_player, energy_k) + sim.height_advantage(eval_player) - sim.height_advantage(1 - eval_player) + sim.territory(eval_player)) * weight;
         }
     }
@@ -312,7 +312,7 @@ void Bot::think() {
     auto opp_dirs = get_initial_dirs(opp_alive);
 
     auto start = std::chrono::steady_clock::now();
-    auto hard_deadline = start + std::chrono::milliseconds(38);
+    auto hard_deadline = start + std::chrono::milliseconds(38 * cheat_factor);
 
     // --- Initialize my population ---
     std::vector<ScoredIndividual> my_pop;

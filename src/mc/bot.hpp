@@ -6,6 +6,7 @@
 #include <sstream>
 #include <chrono>
 #include <cstdlib>
+#include <cmath>
 
 #include "../sim.hpp"
 
@@ -17,6 +18,8 @@ public:
 
     int depth = 10;  // configurable rollout depth
     int energy_k = 3;
+    bool eval_decay = false;
+    int cheat_factor = 1;
 
 private:
     int my_id_ = 0;
