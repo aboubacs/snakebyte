@@ -28,9 +28,6 @@ int main() {
 #ifdef BOT_ELITE_K
     bot.elite_k = BOT_ELITE_K;
 #endif
-#ifdef BOT_ENERGY_K
-    bot.energy_k = BOT_ENERGY_K;
-#endif
 #ifdef BOT_EVAL_DECAY
     bot.eval_decay = BOT_EVAL_DECAY;
 #endif

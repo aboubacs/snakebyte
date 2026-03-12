@@ -131,30 +131,21 @@ struct SimState {
         return count_body_parts(player) - count_body_parts(1 - player);
     }
 
-    // Distance heuristic: average of 1/(1+dist) for up to k closest energies per snake.
+    // Distance heuristic: 1/(1+dist) to closest energy per snake, averaged.
     // Normalized to [0, 0.5) so it never outweighs eating (+1 from eval).
-    double energy_proximity(int player, int k = 3) const {
-        auto alive = get_alive_ids(player);
-        if (alive.empty() || energy.empty()) return 0.0;
-
+    double energy_proximity(int player) const {
+        if (energy.empty()) return 0.0;
         double total = 0.0;
         int count = 0;
-        for (int id : alive) {
-            const SimSnake* sn = get_snake(id);
-            if (!sn || !sn->alive) continue;
-            SimPos head = sn->head();
-
-            std::vector<int> dists;
-            dists.reserve(energy.size());
+        for (auto& sn : snakes) {
+            if (sn.owner != player || !sn.alive) continue;
+            int best = 9999;
             for (auto& e : energy) {
-                dists.push_back(abs(head.x - e.x) + abs(head.y - e.y));
+                int d = abs(sn.body[0].x - e.x) + abs(sn.body[0].y - e.y);
+                if (d < best) best = d;
             }
-            int take = std::min((int)dists.size(), k);
-            std::partial_sort(dists.begin(), dists.begin() + take, dists.end());
-            for (int i = 0; i < take; i++) {
-                total += 1.0 / (1.0 + dists[i]);
-                count++;
-            }
+            total += 1.0 / (1.0 + best);
+            count++;
         }
         if (count == 0) return 0.0;
         return 0.5 * total / count;

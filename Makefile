@@ -2,7 +2,7 @@ CXX := g++
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra
 PYTHON := python3
 
-.PHONY: bot-mc bot-ga bot-gao bot-dga bot-cga bot-sga referee merge version run gui league clean
+.PHONY: bot-mc bot-ga bot-gao bot-dga bot-cga bot-sga referee merge version run gui league test clean
 
 bot-mc:
 	$(CXX) $(CXXFLAGS) -o bot.out src/mc/main.cpp src/mc/bot.cpp src/sim.cpp
@@ -59,6 +59,10 @@ ifndef POOL
 	$(error POOL is required: make league POOL=pool1)
 endif
 	$(PYTHON) tools/league.py $(POOL)
+
+test:
+	$(CXX) $(CXXFLAGS) -o tests/test_sim tests/test_sim.cpp src/sim.cpp
+	./tests/test_sim
 
 clean:
 	rm -f bot.out referee.out

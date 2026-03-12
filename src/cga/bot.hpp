@@ -29,7 +29,6 @@ public:
     double mutation_rate = 0.15;
     bool cumulative_eval = true;
     int elite_k = 3;  // number of elite opponents to evaluate against
-    int energy_k = 3;
     bool eval_decay = false;
     int cheat_factor = 1;
     double center_control_factor = 0.0;

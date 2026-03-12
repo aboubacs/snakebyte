@@ -210,8 +210,8 @@ void Bot::read_turn() {
 
 double Bot::compute_eval(const SimState& sim, int player) const {
     return sim.eval(player)
-         + sim.energy_proximity(player, energy_k)
-         - sim.energy_proximity(1 - player, energy_k)
+         + sim.energy_proximity(player)
+         - sim.energy_proximity(1 - player)
          + sim.height_advantage(player)
          - sim.height_advantage(1 - player)
          + sim.territory(player)

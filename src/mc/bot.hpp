@@ -17,7 +17,6 @@ public:
     void think();
 
     int depth = 10;  // configurable rollout depth
-    int energy_k = 3;
     bool eval_decay = false;
     int cheat_factor = 1;
     double center_control_factor = 0.0;

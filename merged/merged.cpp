@@ -137,30 +137,21 @@ struct SimState {
         return count_body_parts(player) - count_body_parts(1 - player);
     }
 
-    // Distance heuristic: average of 1/(1+dist) for up to k closest energies per snake.
+    // Distance heuristic: 1/(1+dist) to closest energy per snake, averaged.
     // Normalized to [0, 0.5) so it never outweighs eating (+1 from eval).
-    double energy_proximity(int player, int k = 3) const {
-        auto alive = get_alive_ids(player);
-        if (alive.empty() || energy.empty()) return 0.0;
-
+    double energy_proximity(int player) const {
+        if (energy.empty()) return 0.0;
         double total = 0.0;
         int count = 0;
-        for (int id : alive) {
-            const SimSnake* sn = get_snake(id);
-            if (!sn || !sn->alive) continue;
-            SimPos head = sn->head();
-
-            std::vector<int> dists;
-            dists.reserve(energy.size());
+        for (auto& sn : snakes) {
+            if (sn.owner != player || !sn.alive) continue;
+            int best = 9999;
             for (auto& e : energy) {
-                dists.push_back(abs(head.x - e.x) + abs(head.y - e.y));
+                int d = abs(sn.body[0].x - e.x) + abs(sn.body[0].y - e.y);
+                if (d < best) best = d;
             }
-            int take = std::min((int)dists.size(), k);
-            std::partial_sort(dists.begin(), dists.begin() + take, dists.end());
-            for (int i = 0; i < take; i++) {
-                total += 1.0 / (1.0 + dists[i]);
-                count++;
-            }
+            total += 1.0 / (1.0 + best);
+            count++;
         }
         if (count == 0) return 0.0;
         return 0.5 * total / count;
@@ -319,61 +310,69 @@ void SimState::do_beheadings() {
 }
 
 void SimState::apply_gravity() {
+    // Flat grounded array indexed by snake index (not id)
+    const int n = (int)snakes.size();
+    bool grounded[16]; // max 16 snakes (8 per player, 2 players)
+
+    // Grid bitmap for grounded snake body positions
+    // Avoids O(snakes * body) lookup per cell
+    bool body_grid[50][50]; // max grid 50x50
+
     bool something_fell = true;
     while (something_fell) {
         something_fell = false;
 
-        // Grounded propagation: iteratively find snakes supported by
-        // platform, energy, or an already-grounded snake below them
-        std::set<int> airborne_ids;
-        for (auto& s : snakes) {
-            if (s.alive) airborne_ids.insert(s.id);
-        }
-        std::set<int> grounded_ids;
+        // Reset grounded flags
+        for (int i = 0; i < n; i++) grounded[i] = false;
 
         bool something_got_grounded = true;
         while (something_got_grounded) {
             something_got_grounded = false;
-            for (auto& s : snakes) {
-                if (!s.alive || !airborne_ids.count(s.id)) continue;
-                bool grounded = false;
-                for (auto& bp : s.body) {
-                    SimPos below = {bp.x, bp.y + 1};
-                    if (is_platform(below)) { grounded = true; break; }
-                    if (has_energy(below)) { grounded = true; break; }
-                    // Supported by a grounded snake's body
-                    for (auto& other : snakes) {
-                        if (!other.alive || !grounded_ids.count(other.id)) continue;
-                        for (auto& obp : other.body) {
-                            if (obp == below) { grounded = true; break; }
-                        }
-                        if (grounded) break;
-                    }
-                    if (grounded) break;
+
+            // Build grid of grounded snake body positions
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                    body_grid[y][x] = false;
+            for (int i = 0; i < n; i++) {
+                if (!snakes[i].alive || !grounded[i]) continue;
+                for (auto& bp : snakes[i].body) {
+                    body_grid[bp.y][bp.x] = true;
                 }
-                if (grounded) {
-                    grounded_ids.insert(s.id);
-                    airborne_ids.erase(s.id);
+            }
+
+            for (int i = 0; i < n; i++) {
+                if (!snakes[i].alive || grounded[i]) continue;
+                bool is_grounded = false;
+                for (auto& bp : snakes[i].body) {
+                    int bx = bp.x, by = bp.y + 1;
+                    if (by < height && is_platform({bx, by})) { is_grounded = true; break; }
+                    if (has_energy({bx, by})) { is_grounded = true; break; }
+                    if (bx >= 0 && bx < width && by >= 0 && by < height && body_grid[by][bx]) {
+                        is_grounded = true; break;
+                    }
+                }
+                if (is_grounded) {
+                    grounded[i] = true;
                     something_got_grounded = true;
                 }
             }
         }
 
         // Drop all airborne snakes by 1
-        for (auto& s : snakes) {
-            if (!s.alive || !airborne_ids.count(s.id)) continue;
-            for (auto& bp : s.body) {
+        for (int i = 0; i < n; i++) {
+            if (!snakes[i].alive || grounded[i]) continue;
+            for (auto& bp : snakes[i].body) {
                 bp.y += 1;
             }
             something_fell = true;
         }
 
         // Kill snakes that fell off the grid
-        for (auto& s : snakes) {
-            if (!s.alive) continue;
-            for (auto& bp : s.body) {
+        for (int i = 0; i < n; i++) {
+            if (!snakes[i].alive) continue;
+            for (auto& bp : snakes[i].body) {
                 if (!in_bounds(bp)) {
-                    s.alive = false;
+                    snakes[i].alive = false;
                     something_fell = true;
                     break;
                 }
@@ -428,7 +427,6 @@ public:
     int pop_size = 50;
     double mutation_rate = 0.15;
     bool cumulative_eval = true;
-    int energy_k = 3;
     bool eval_decay = false;
     int cheat_factor = 1;
     double center_control_factor = 0.0;
@@ -698,7 +696,7 @@ double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
     for (int t = 0; t < steps; t++) {
         if (sim.game_over) {
             if (cumulative_eval) {
-                double final_eval = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_) + center_control_factor * (sim.center_control(my_id_) - sim.center_control(1 - my_id_));
+                double final_eval = sim.eval(my_id_) + sim.energy_proximity(my_id_) - sim.energy_proximity(1 - my_id_) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_) + center_control_factor * (sim.center_control(my_id_) - sim.center_control(1 - my_id_));
                 for (int r = t; r < steps; r++) score += final_eval * (eval_decay ? 1.0 / (1.0 + r) : (1.0 + r));
             }
             if (sim.winner == 1 - my_id_) score -= 100.0;
@@ -725,12 +723,12 @@ double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
 
         if (cumulative_eval) {
             double weight = eval_decay ? 1.0 / (1.0 + t) : (1.0 + t);
-            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_) + center_control_factor * (sim.center_control(my_id_) - sim.center_control(1 - my_id_))) * weight;
+            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_) - sim.energy_proximity(1 - my_id_) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_) + center_control_factor * (sim.center_control(my_id_) - sim.center_control(1 - my_id_))) * weight;
         }
     }
 
     if (!cumulative_eval) {
-        score = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_) + center_control_factor * (sim.center_control(my_id_) - sim.center_control(1 - my_id_));
+        score = sim.eval(my_id_) + sim.energy_proximity(my_id_) - sim.energy_proximity(1 - my_id_) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_) + center_control_factor * (sim.center_control(my_id_) - sim.center_control(1 - my_id_));
     }
     return score;
 }
@@ -747,7 +745,7 @@ double Bot::evaluate_opp(const SimState& base, const std::vector<int>& opp_alive
     for (int t = 0; t < steps; t++) {
         if (sim.game_over) {
             if (cumulative_eval) {
-                double final_eval = sim.eval(opp_id) + sim.energy_proximity(opp_id, energy_k) - sim.energy_proximity(my_id_, energy_k) + sim.height_advantage(opp_id) - sim.height_advantage(my_id_) + sim.territory(opp_id) + center_control_factor * (sim.center_control(opp_id) - sim.center_control(1 - opp_id));
+                double final_eval = sim.eval(opp_id) + sim.energy_proximity(opp_id) - sim.energy_proximity(my_id_) + sim.height_advantage(opp_id) - sim.height_advantage(my_id_) + sim.territory(opp_id) + center_control_factor * (sim.center_control(opp_id) - sim.center_control(1 - opp_id));
                 for (int r = t; r < steps; r++) score += final_eval * (eval_decay ? 1.0 / (1.0 + r) : (1.0 + r));
             }
             if (sim.winner == my_id_) score -= 100.0;
@@ -767,12 +765,12 @@ double Bot::evaluate_opp(const SimState& base, const std::vector<int>& opp_alive
 
         if (cumulative_eval) {
             double weight = eval_decay ? 1.0 / (1.0 + t) : (1.0 + t);
-            score += (sim.eval(opp_id) + sim.energy_proximity(opp_id, energy_k) - sim.energy_proximity(my_id_, energy_k) + sim.height_advantage(opp_id) - sim.height_advantage(my_id_) + sim.territory(opp_id) + center_control_factor * (sim.center_control(opp_id) - sim.center_control(1 - opp_id))) * weight;
+            score += (sim.eval(opp_id) + sim.energy_proximity(opp_id) - sim.energy_proximity(my_id_) + sim.height_advantage(opp_id) - sim.height_advantage(my_id_) + sim.territory(opp_id) + center_control_factor * (sim.center_control(opp_id) - sim.center_control(1 - opp_id))) * weight;
         }
     }
 
     if (!cumulative_eval) {
-        score = sim.eval(opp_id) + sim.energy_proximity(opp_id, energy_k) - sim.energy_proximity(my_id_, energy_k) + sim.height_advantage(opp_id) - sim.height_advantage(my_id_) + sim.territory(opp_id) + center_control_factor * (sim.center_control(opp_id) - sim.center_control(1 - opp_id));
+        score = sim.eval(opp_id) + sim.energy_proximity(opp_id) - sim.energy_proximity(my_id_) + sim.height_advantage(opp_id) - sim.height_advantage(my_id_) + sim.territory(opp_id) + center_control_factor * (sim.center_control(opp_id) - sim.center_control(1 - opp_id));
     }
     return score;
 }
@@ -1036,9 +1034,6 @@ int main() {
 #endif
 #ifdef BOT_CUMEVAL
     bot.cumulative_eval = BOT_CUMEVAL;
-#endif
-#ifdef BOT_ENERGY_K
-    bot.energy_k = BOT_ENERGY_K;
 #endif
 #ifdef BOT_EVAL_DECAY
     bot.eval_decay = BOT_EVAL_DECAY;

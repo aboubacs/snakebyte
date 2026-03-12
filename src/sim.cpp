@@ -80,61 +80,69 @@ void SimState::do_beheadings() {
 }
 
 void SimState::apply_gravity() {
+    // Flat grounded array indexed by snake index (not id)
+    const int n = (int)snakes.size();
+    bool grounded[16]; // max 16 snakes (8 per player, 2 players)
+
+    // Grid bitmap for grounded snake body positions
+    // Avoids O(snakes * body) lookup per cell
+    bool body_grid[50][50]; // max grid 50x50
+
     bool something_fell = true;
     while (something_fell) {
         something_fell = false;
 
-        // Grounded propagation: iteratively find snakes supported by
-        // platform, energy, or an already-grounded snake below them
-        std::set<int> airborne_ids;
-        for (auto& s : snakes) {
-            if (s.alive) airborne_ids.insert(s.id);
-        }
-        std::set<int> grounded_ids;
+        // Reset grounded flags
+        for (int i = 0; i < n; i++) grounded[i] = false;
 
         bool something_got_grounded = true;
         while (something_got_grounded) {
             something_got_grounded = false;
-            for (auto& s : snakes) {
-                if (!s.alive || !airborne_ids.count(s.id)) continue;
-                bool grounded = false;
-                for (auto& bp : s.body) {
-                    SimPos below = {bp.x, bp.y + 1};
-                    if (is_platform(below)) { grounded = true; break; }
-                    if (has_energy(below)) { grounded = true; break; }
-                    // Supported by a grounded snake's body
-                    for (auto& other : snakes) {
-                        if (!other.alive || !grounded_ids.count(other.id)) continue;
-                        for (auto& obp : other.body) {
-                            if (obp == below) { grounded = true; break; }
-                        }
-                        if (grounded) break;
-                    }
-                    if (grounded) break;
+
+            // Build grid of grounded snake body positions
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                    body_grid[y][x] = false;
+            for (int i = 0; i < n; i++) {
+                if (!snakes[i].alive || !grounded[i]) continue;
+                for (auto& bp : snakes[i].body) {
+                    body_grid[bp.y][bp.x] = true;
                 }
-                if (grounded) {
-                    grounded_ids.insert(s.id);
-                    airborne_ids.erase(s.id);
+            }
+
+            for (int i = 0; i < n; i++) {
+                if (!snakes[i].alive || grounded[i]) continue;
+                bool is_grounded = false;
+                for (auto& bp : snakes[i].body) {
+                    int bx = bp.x, by = bp.y + 1;
+                    if (by < height && is_platform({bx, by})) { is_grounded = true; break; }
+                    if (has_energy({bx, by})) { is_grounded = true; break; }
+                    if (bx >= 0 && bx < width && by >= 0 && by < height && body_grid[by][bx]) {
+                        is_grounded = true; break;
+                    }
+                }
+                if (is_grounded) {
+                    grounded[i] = true;
                     something_got_grounded = true;
                 }
             }
         }
 
         // Drop all airborne snakes by 1
-        for (auto& s : snakes) {
-            if (!s.alive || !airborne_ids.count(s.id)) continue;
-            for (auto& bp : s.body) {
+        for (int i = 0; i < n; i++) {
+            if (!snakes[i].alive || grounded[i]) continue;
+            for (auto& bp : snakes[i].body) {
                 bp.y += 1;
             }
             something_fell = true;
         }
 
         // Kill snakes that fell off the grid
-        for (auto& s : snakes) {
-            if (!s.alive) continue;
-            for (auto& bp : s.body) {
+        for (int i = 0; i < n; i++) {
+            if (!snakes[i].alive) continue;
+            for (auto& bp : snakes[i].body) {
                 if (!in_bounds(bp)) {
-                    s.alive = false;
+                    snakes[i].alive = false;
                     something_fell = true;
                     break;
                 }

@@ -42,7 +42,6 @@ public:
     int depth = 10;
     double explore_c = 1.41;
     int random_threshold = 10;
-    int energy_k = 3;
     bool eval_decay = false;
     int cheat_factor = 1;
     double center_control_factor = 0.0;

@@ -28,7 +28,6 @@ public:
     int pop_size = 50;
     double mutation_rate = 0.15;
     bool cumulative_eval = true;
-    int energy_k = 3;
     bool eval_decay = false;
     int cheat_factor = 1;
     double center_control_factor = 0.0;
