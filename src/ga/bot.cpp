@@ -192,7 +192,7 @@ double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
     for (int t = 0; t < steps; t++) {
         if (sim.game_over) {
             if (cumulative_eval) {
-                double final_eval = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_);
+                double final_eval = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_) + center_control_factor * (sim.center_control(my_id_) - sim.center_control(1 - my_id_));
                 for (int r = t; r < steps; r++) score += final_eval * (eval_decay ? 1.0 / (1.0 + r) : (1.0 + r));
             }
             // Heavy penalty for losing the game (dying should always be avoided)
@@ -210,12 +210,12 @@ double Bot::evaluate(const SimState& base, const std::vector<int>& alive_ids,
 
         if (cumulative_eval) {
             double weight = eval_decay ? 1.0 / (1.0 + t) : (1.0 + t);
-            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_)) * weight;
+            score += (sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_) + center_control_factor * (sim.center_control(my_id_) - sim.center_control(1 - my_id_))) * weight;
         }
     }
 
     if (!cumulative_eval) {
-        score = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_);
+        score = sim.eval(my_id_) + sim.energy_proximity(my_id_, energy_k) - sim.energy_proximity(1 - my_id_, energy_k) + sim.height_advantage(my_id_) - sim.height_advantage(1 - my_id_) + sim.territory(my_id_) + center_control_factor * (sim.center_control(my_id_) - sim.center_control(1 - my_id_));
     }
     return score;
 }

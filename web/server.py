@@ -74,15 +74,16 @@ def background_runner():
                         winner_idx = game_log.get("winner", -1)
                         winner = players_to_run[winner_idx] if winner_idx >= 0 else None
 
+                        from elo import update_ratings_2p, DEFAULT_RD
                         r0 = pool.ratings[players_to_run[0]]
                         r1 = pool.ratings[players_to_run[1]]
-                        from elo import update_ratings_2p, update_rd_after_game
-                        new_r0, new_r1 = update_ratings_2p(r0, r1, winner_idx)
+                        rd0 = pool.rd.get(players_to_run[0], DEFAULT_RD)
+                        rd1 = pool.rd.get(players_to_run[1], DEFAULT_RD)
+                        new_r0, new_r1, new_rd0, new_rd1 = update_ratings_2p(r0, r1, rd0, rd1, winner_idx)
                         pool.ratings[players_to_run[0]] = new_r0
                         pool.ratings[players_to_run[1]] = new_r1
-
-                        for v in players_to_run:
-                            pool.rd[v] = update_rd_after_game(pool.rd.get(v, 350.0))
+                        pool.rd[players_to_run[0]] = new_rd0
+                        pool.rd[players_to_run[1]] = new_rd1
 
                         result = {
                             "players": players_to_run,

@@ -31,6 +31,7 @@ public:
     int energy_k = 3;
     bool eval_decay = false;
     int cheat_factor = 1;
+    double center_control_factor = 0.0;
 
 private:
     int my_id_ = 0;

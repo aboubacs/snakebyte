@@ -214,7 +214,8 @@ double Bot::compute_eval(const SimState& sim, int player) const {
          - sim.energy_proximity(1 - player, energy_k)
          + sim.height_advantage(player)
          - sim.height_advantage(1 - player)
-         + sim.territory(player);
+         + sim.territory(player)
+         + center_control_factor * (sim.center_control(player) - sim.center_control(1 - player));
 }
 
 void Bot::think() {

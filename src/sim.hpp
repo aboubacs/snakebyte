@@ -2,8 +2,6 @@
 
 #include <vector>
 #include <set>
-#include <map>
-#include <functional>
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -208,6 +206,22 @@ struct SimState {
             else if (opp_best < my_best) opp_count++;
         }
         return 0.5 * (my_count - opp_count) / (int)energy.size();
+    }
+
+    double center_control(int player) const {
+        auto alive = get_alive_ids(player);
+        if (alive.empty() || width <= 1) return 0.0;
+        double total = 0.0;
+        int count = 0;
+        double half_w = (width - 1) / 2.0;
+        for (int id : alive) {
+            const SimSnake* sn = get_snake(id);
+            if (!sn || !sn->alive) continue;
+            total += 1.0 - std::abs(sn->head().x - half_w) / half_w;
+            count++;
+        }
+        if (count == 0) return 0.0;
+        return total / count;
     }
 
 private:

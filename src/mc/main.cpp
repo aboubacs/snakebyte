@@ -26,6 +26,9 @@ int main() {
 #ifdef BOT_CHEAT_FACTOR
     bot.cheat_factor = BOT_CHEAT_FACTOR;
 #endif
+#ifdef BOT_CENTER_CONTROL_FACTOR
+    bot.center_control_factor = BOT_CENTER_CONTROL_FACTOR / 100.0;
+#endif
 
     bot.init();
 

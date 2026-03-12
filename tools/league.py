@@ -15,7 +15,6 @@ from datetime import datetime
 
 from elo import (
     DEFAULT_RATING, DEFAULT_RD, update_ratings_2p,
-    update_ratings_multiplayer, update_rd_after_game,
 )
 from runner import run_match
 
@@ -132,24 +131,17 @@ class Pool:
         winner_idx = game_log.get("winner", -1)
         winner = players[winner_idx] if winner_idx >= 0 else None
 
-        # Update ELO
+        # Update ratings and RD (Glicko)
         if n == 2:
             r0 = self.ratings[players[0]]
             r1 = self.ratings[players[1]]
-            new_r0, new_r1 = update_ratings_2p(r0, r1, winner_idx)
+            rd0 = self.rd.get(players[0], DEFAULT_RD)
+            rd1 = self.rd.get(players[1], DEFAULT_RD)
+            new_r0, new_r1, new_rd0, new_rd1 = update_ratings_2p(r0, r1, rd0, rd1, winner_idx)
             self.ratings[players[0]] = new_r0
             self.ratings[players[1]] = new_r1
-        else:
-            ratings_list = [self.ratings[v] for v in players]
-            scores = game_log.get("scores", [0] * n)
-            ranking = sorted(range(n), key=lambda i: scores[i], reverse=True)
-            new_ratings = update_ratings_multiplayer(ratings_list, ranking)
-            for i, v in enumerate(players):
-                self.ratings[v] = new_ratings[i]
-
-        # Update RD
-        for v in players:
-            self.rd[v] = update_rd_after_game(self.rd.get(v, DEFAULT_RD))
+            self.rd[players[0]] = new_rd0
+            self.rd[players[1]] = new_rd1
 
         match_record = {
             "players": players,

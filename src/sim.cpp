@@ -71,7 +71,7 @@ void SimState::do_beheadings() {
     for (int id : to_behead) {
         SimSnake* s = get_snake(id);
         if (!s) continue;
-        if (s->length() >= 3) {
+        if (s->length() > 3) {
             s->body.erase(s->body.begin());
         } else {
             s->alive = false;
@@ -80,91 +80,62 @@ void SimState::do_beheadings() {
 }
 
 void SimState::apply_gravity() {
-    bool changed = true;
-    while (changed) {
-        changed = false;
+    bool something_fell = true;
+    while (something_fell) {
+        something_fell = false;
 
-        // Union-find for intercoiled groups
-        std::map<int, int> parent;
+        // Grounded propagation: iteratively find snakes supported by
+        // platform, energy, or an already-grounded snake below them
+        std::set<int> airborne_ids;
         for (auto& s : snakes) {
-            if (!s.alive) continue;
-            parent[s.id] = s.id;
+            if (s.alive) airborne_ids.insert(s.id);
         }
+        std::set<int> grounded_ids;
 
-        std::function<int(int)> uf_find = [&](int x) -> int {
-            while (parent[x] != x) x = parent[x] = parent[parent[x]];
-            return x;
-        };
-
-        auto unite = [&](int a, int b) {
-            a = uf_find(a); b = uf_find(b);
-            if (a != b) parent[a] = b;
-        };
-
-        for (int i = 0; i < (int)snakes.size(); i++) {
-            if (!snakes[i].alive) continue;
-            for (int j = i + 1; j < (int)snakes.size(); j++) {
-                if (!snakes[j].alive) continue;
-                bool adjacent = false;
-                for (auto& bp1 : snakes[i].body) {
-                    for (auto& bp2 : snakes[j].body) {
-                        int dist = abs(bp1.x - bp2.x) + abs(bp1.y - bp2.y);
-                        if (dist <= 1) {
-                            adjacent = true;
-                            break;
-                        }
-                    }
-                    if (adjacent) break;
-                }
-                if (adjacent) unite(snakes[i].id, snakes[j].id);
-            }
-        }
-
-        // Collect groups
-        std::map<int, std::vector<int>> groups;
-        for (int i = 0; i < (int)snakes.size(); i++) {
-            if (!snakes[i].alive) continue;
-            groups[uf_find(snakes[i].id)].push_back(i);
-        }
-
-        // Check support for each group
-        for (auto& [gid, indices] : groups) {
-            bool supported = false;
-            for (int idx : indices) {
-                if (supported) break;
-                for (auto& bp : snakes[idx].body) {
+        bool something_got_grounded = true;
+        while (something_got_grounded) {
+            something_got_grounded = false;
+            for (auto& s : snakes) {
+                if (!s.alive || !airborne_ids.count(s.id)) continue;
+                bool grounded = false;
+                for (auto& bp : s.body) {
                     SimPos below = {bp.x, bp.y + 1};
-                    if (is_platform(below)) { supported = true; break; }
-                    if (has_energy(below)) { supported = true; break; }
-                    // Supported by snake from different group
+                    if (is_platform(below)) { grounded = true; break; }
+                    if (has_energy(below)) { grounded = true; break; }
+                    // Supported by a grounded snake's body
                     for (auto& other : snakes) {
-                        if (!other.alive || uf_find(other.id) == gid) continue;
+                        if (!other.alive || !grounded_ids.count(other.id)) continue;
                         for (auto& obp : other.body) {
-                            if (obp == below) { supported = true; break; }
+                            if (obp == below) { grounded = true; break; }
                         }
-                        if (supported) break;
+                        if (grounded) break;
                     }
-                    if (supported) break;
+                    if (grounded) break;
                 }
-            }
-
-            if (!supported) {
-                for (int idx : indices) {
-                    for (auto& bp : snakes[idx].body) {
-                        bp.y += 1;
-                    }
+                if (grounded) {
+                    grounded_ids.insert(s.id);
+                    airborne_ids.erase(s.id);
+                    something_got_grounded = true;
                 }
-                changed = true;
             }
         }
 
-        // Kill snakes that fell off
+        // Drop all airborne snakes by 1
+        for (auto& s : snakes) {
+            if (!s.alive || !airborne_ids.count(s.id)) continue;
+            for (auto& bp : s.body) {
+                bp.y += 1;
+            }
+            something_fell = true;
+        }
+
+        // Kill snakes that fell off the grid
         for (auto& s : snakes) {
             if (!s.alive) continue;
             for (auto& bp : s.body) {
                 if (!in_bounds(bp)) {
                     s.alive = false;
-                    changed = true;
+                    something_fell = true;
                     break;
                 }
             }
